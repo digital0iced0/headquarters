@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using Newtonsoft.Json;
@@ -374,7 +374,7 @@ namespace Oxide.Plugins
             }
         }
 
-        private object OnEntityTakeDamage(BuildingBlock bb, HitInfo info)
+        private object OnEntityTakeDamage(BaseCombatEntity entity, HitInfo info)
         {
 
             if (_freeForAllActive)
@@ -382,49 +382,51 @@ namespace Oxide.Plugins
                 return null;
             }
 
-            var attacker = info?.Initiator?.ToPlayer();
-
-            bool isSteamId = bb.OwnerID.IsSteamId();
-
-            bool isTC = (bb is BuildingPrivlidge);
-
-            if (attacker == null || (!isTC && isSteamId))
+            if (entity is BuildingBlock || entity.name.Contains("deploy") || entity.name.Contains("building"))
             {
-                return null;
-            }
+                var attacker = info?.Initiator?.ToPlayer();
 
-            bool isAttackerAuthed = attacker.IsBuildingAuthed(bb.transform.position, bb.transform.rotation, bb.bounds);
+                bool isSteamId = entity.OwnerID.IsSteamId();
 
-            if (!isTC && isAttackerAuthed)
-            {
-                return null;
-            }
+                bool isTC = (entity is BuildingPrivlidge);
 
-            var headquarter = GetHeadquarterAtPosition(bb.transform.position);
-
-            if (headquarter != null)
-            {
-                if (headquarter.HasProtection)
+                if (attacker == null || (!isTC && isSteamId))
                 {
-                    // If we're still here, either its a Headquarter's TC, OR its a building block which is protected from damage for this player.
-                    SendReply(info.InitiatorPlayer, Lang("Headquarter_Protected_NoDamage", attacker.UserIDString));
-                    return true;
+                    return null;
                 }
-                else
+
+                bool isAttackerAuthed = attacker.IsBuildingAuthed(entity.transform.position, entity.transform.rotation, entity.bounds);
+
+                if (!isTC && isAttackerAuthed)
                 {
-                    // If this headquarter is not protected, lets figure out if the user can attack it
+                    return null;
+                }
 
-                    var playerHeadquarter = GetPlayerHeadquarter(info.InitiatorPlayer);
+                var headquarter = GetHeadquarterAtPosition(entity.transform.position);
 
-                    if (playerHeadquarter != null && playerHeadquarter.HasProtection)
+                if (headquarter != null)
+                {
+                    if (headquarter.HasProtection)
                     {
-                        // This player is part of a protected HQ so it can't damage other players' HQ
-                        SendReply(info.InitiatorPlayer, Lang("Headquarter_Unprotected_NoDamage", attacker.UserIDString));
+                        // If we're still here, either its a Headquarter's TC, OR its a building block which is protected from damage for this player.
+                        SendReply(info.InitiatorPlayer, Lang("Headquarter_Protected_NoDamage", attacker.UserIDString));
                         return true;
+                    }
+                    else
+                    {
+                        // If this headquarter is not protected, lets figure out if the user can attack it
+
+                        var playerHeadquarter = GetPlayerHeadquarter(info.InitiatorPlayer);
+
+                        if (playerHeadquarter != null && playerHeadquarter.HasProtection)
+                        {
+                            // This player is part of a protected HQ so it can't damage other players' HQ
+                            SendReply(info.InitiatorPlayer, Lang("Headquarter_Unprotected_NoDamage", attacker.UserIDString));
+                            return true;
+                        }
                     }
                 }
             }
-
 
             return null;
         }
