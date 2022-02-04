@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Headquarters", "digital0iced0", "0.0.2")]
+    [Info("Headquarters", "digital0iced0", "0.0.3")]
     [Description("Allows players to have one protected headquarters base until they're ready to participate in raiding.")]
     public class Headquarters : RustPlugin
     {
