@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Headquarters", "digital0iced0", "0.0.3")]
+    [Info("Headquarters", "digital0iced0", "0.0.4")]
     [Description("Allows players to have one protected headquarters base until they're ready to participate in raiding.")]
     public class Headquarters : RustPlugin
     {
@@ -228,9 +228,8 @@ namespace Oxide.Plugins
             public float PositionZ { get; }
             public bool HasProtection { get; set; }
             public List<string> MemberIds { get; set; } = new List<string>();
-
+            [JsonIgnore]
             public MapMarkerGenericRadius marker;
-
             public DateTime DisabledAt { get; set; }
 
             public Headquarter(string user, float positionX, float positionY, float positionZ)
@@ -280,7 +279,6 @@ namespace Oxide.Plugins
                     }
 
                     marker.radius = 0.2f;
-                    marker.enableSaving = false;
                     marker.Spawn();
                     marker.SendUpdate();
                 }
@@ -347,8 +345,8 @@ namespace Oxide.Plugins
 
         private void OnServerSave()
         {
-            RemoveMapMarkers();
             SaveData();
+            RefreshMapMarkers();
         }
 
         private void Unload()
@@ -386,11 +384,9 @@ namespace Oxide.Plugins
             {
                 var attacker = info?.Initiator?.ToPlayer();
 
-                bool isSteamId = entity.OwnerID.IsSteamId();
-
                 bool isTC = (entity is BuildingPrivlidge);
 
-                if (attacker == null || (!isTC && isSteamId))
+                if (attacker == null)
                 {
                     return null;
                 }
