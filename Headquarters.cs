@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Headquarters", "digital0iced0", "0.0.4")]
+    [Info("Headquarters", "digital0iced0", "0.1.0")]
     [Description("Allows players to have one protected headquarters base until they're ready to participate in raiding.")]
     public class Headquarters : RustPlugin
     {
@@ -16,7 +16,7 @@ namespace Oxide.Plugins
 
         private static PluginData _data;
 
-        private static ConfigFile cFile;
+        private static ConfigFile _config;
 
         private bool _freeForAllActive = false;
 
@@ -24,6 +24,23 @@ namespace Oxide.Plugins
 
         // Permissions
         private const string AdminPermissionName = "headquarters.admin";
+
+        private static readonly string[] StorageTypes = {
+            "skull_fire_pit",
+            "bbq.deployed",
+            "dropbox.deployed",
+            "stocking_small_deployed",
+            "campfire",
+            "furnace.large",
+            "furnace",
+            "box.wooden.large",
+            "small_stash_deployed",
+            "refinery_small_deployed",
+            "cupboard.tool.deployed",
+            "vendingmachine.deployed",
+            "woodbox_deployed",
+            "locker.deployed",
+        };
 
         #endregion
 
@@ -37,51 +54,46 @@ namespace Oxide.Plugins
             {
                 return new ConfigFile
                 {
-                    HeadquartersConfig = new HeadquartersConfig()
-                    {
-                        Radius = 50f,
-                        DistanceToTC = 5f,
-                        FreeForAllEnabled = true,
-                        FreeForAllHoursAfterWipe = 144f,
-                        MarkerPrefab = "assets/prefabs/tools/map/genericradiusmarker.prefab",
-                        ProtectedColor = "#708A43",
-                        UnprotectedColor = "#9A4A3B"
-                    },
-
+                    HeadquartersConfig = new HeadquartersConfig(),
                 };
             }
         }
 
         private class HeadquartersConfig
         {
-            public float Radius { get; set; }
-            public float DistanceToTC { get; set; }
+            public float Radius { get; set; } = 50f;
 
-            public bool FreeForAllEnabled { get; set; }
+            public float DistanceToTC { get; set; } = 5f;
 
-            public float FreeForAllHoursAfterWipe { get; set; }
+            public bool FreeForAllEnabled { get; set; } = true;
 
-            public string MarkerPrefab { get; set; } = "";
+            public float FreeForAllHoursAfterWipe { get; set; } = 144f;
 
-            public string ProtectedColor { get; set; } = "";
+            public string MarkerPrefab { get; set; } = "assets/prefabs/tools/map/genericradiusmarker.prefab";
 
-            public string UnprotectedColor { get; set; } = "";
+            public float ProtectionPercent { get; set; } = 100;
+
+            public float ProtectionPercentMinimum { get; set; } = 10;
+
+            public float ProtectionSlotsWithoutPenalty { get; set; } = 30;
+
+            public float ProtectionPenaltyPercentPerSlot { get; set; } = 2;
         }
 
 
         protected override void LoadDefaultConfig()
         {
             PrintWarning("Generating default configuration file...");
-            cFile = ConfigFile.DefaultConfig();
+            _config = ConfigFile.DefaultConfig();
         }
 
         protected override void LoadConfig()
         {
             base.LoadConfig();
-            cFile = Config.ReadObject<ConfigFile>();
+            _config = Config.ReadObject<ConfigFile>();
         }
 
-        protected override void SaveConfig() => Config.WriteObject(cFile);
+        protected override void SaveConfig() => Config.WriteObject(_config);
 
         #endregion
 
@@ -94,7 +106,7 @@ namespace Oxide.Plugins
         {
             lang.RegisterMessages(new Dictionary<string, string>
             {
-                ["Server_Welcome"] = "This server is running the Headquarter mod.  It allows you to protect one of your bases from attack.  For more details type /hq.help in chat",
+                ["Server_Welcome"] = "This server is running Headquarters mod.  It allows you to provide added defense to one of your bases.  For more details type /hq.help in chat",
                 ["Headquarter_Protected_NoDamage"] = "This base is under the protection of a headquarter.  It can't be damaged at this time.",
                 ["Headquarter_Unprotected_NoDamage"] = "This headquarter is unprotected.  However, you can't attack it because your headquarter is still protected.",
                 ["Headquarter_Exists_Cant_Clear_List"] = "A protected headquarter exists at this location.  You must disable its protection before being able to clear its privilege list.",
@@ -103,7 +115,7 @@ namespace Oxide.Plugins
                 ["Headquarter_Not_Inside"] = "You're not inside a headquarter.",
                 ["Headquarter_Start_Near_TC"] = "You must stand next to your base's Tool Cupboard to start a headquarter.",
                 ["Headquarter_Successful_Start"] = "You have started a protected headquarter at this base! You can invite others to join your headquarter by having them authenticate at the Tool Cupboard.  To keep your headquarter base secure, put a lock on your Tool Cupboard.",
-                ["Headquarter_Already_Started"] = "You have already started or joined a headquarter.  This disqualifies you from creating a new headquarter, but you can join another player's headquarter.",
+                ["Headquarter_Already_Started"] = "You have already started or joined a headquarter.  This disqualifies you from creating a new headquarter, but you can join another player's headquarter by authenticating at their Tool Cupboard.",
                 ["Headquarter_Founder_Quit_Promoted"] = "Your previous headquarter had other members, therefore, one of them has been promoted to lead it.  You have also been deauthed from its Tool Cupboard.",
                 ["Headquarter_Founder_Quit_Empty"] = "Your previous headquarter has been disbanded.  Since you were its only member you still maintain access to the base.",
                 ["Headquarter_Disabled_Protection"] = "You have disabled your headquarter's protection.  You can now raid unprotected headquarters.",
@@ -112,8 +124,10 @@ namespace Oxide.Plugins
                 ["Headquarter_Near_Found"] = "Headquarter {0} near {1}.",
                 ["Headquarter_Already_Member"] = "You're already part of this headquarter.",
                 ["Headquarter_Cleared"] = "All headquarters have been removed.  Protections are disabled.",
-                ["Headquarter_Here"] = "There is a headquarter at this position.",
+                ["Headquarter_Here_Protection_Rating"] = "You're in {0}'s headquarter! ({1}%).",
                 ["Headquarter_Empty_Here"] = "There isn't a headquarter at this position.",
+                ["Headquarter_Require_Name"] = "You must provide a name for your headquarter.",
+                ["Headquarter_Deployable_Blocked"] = "You can't deploy this item inside someone else's headquarter.",
 
                 ["Free_For_All_Active"] = "<color=green>Headquarter free for all is active! Headquarter protections are disabled!</color>",
                 ["Free_For_All_Stopped"] = "<color=red>Headquarter free for all is deactivated!</color>",
@@ -125,11 +139,11 @@ namespace Oxide.Plugins
                 ["Cmd_Headquarter_Removed"] = "The founder's headquarter has been removed.",
                 ["Cmd_Headquarter_Remove_Fail"] = "Could not find a headquarter belonging to this founder.",
 
-                ["Help_Welcome"] = "Welcome to headquarters.  This mod allows you to protect one of your bases.  Keep this in mind as you play the game.  You can only belong to one headquarter at a time.  If you're a member of a headquarter and authenticate at another headquarter's Tool Cupboard you will be removed from the previous headquarter.  Below are the available player commands.",
+                ["Help_Welcome"] = "Welcome to Headquarters! This mod allows you to provide protection for one of your bases by designating it your hq.  You can only belong to one hq at any given time. Lastly, if you place too many items inside a headquarter it may reduce its protection level. Below are the available player commands.",
                 ["Help_Start"] = "Starts a protected Headquarter at one of your bases' Tool Cupboard.",
                 ["Help_Disable_Protection"] = "(Founder Only) Allows you to disable your headquarter's protection. This will allow you to participate in raiding.",
                 ["Help_FFA"] = "Provides details on how long until free for all is activated.",
-                ["Help_Check"] = "Lets you know if there is a headquarter at your current position.",
+                ["Help_Check"] = "Lets you know if there is a headquarter (and its protection level) at your position.",
 
                 ["Time_In_Hours"] = "in approximately {0} hours.",
                 ["Time_In_Minutes"] = "in approximately {0} minutes.",
@@ -179,6 +193,26 @@ namespace Oxide.Plugins
         {
             return _data.MemberPlayers.ContainsKey(player.UserIDString);
         }
+
+        private Headquarter GetStorageAffectedHeadquarter(ItemContainer container)
+        {
+            string prefabName = container?.entityOwner?.ShortPrefabName ?? "unknown";
+
+            if (container == null || !StorageTypes.Contains(prefabName))
+            {
+                return null;
+            }
+
+            var headquarter = GetHeadquarterAtPosition(container.entityOwner.transform.position);
+
+            if (headquarter == null)
+            {
+                return null;
+            }
+
+            return headquarter;
+        }
+
         private void SaveData() => Interface.Oxide.DataFileSystem.WriteObject(Name, _data);
 
         private void LoadData()
@@ -223,6 +257,8 @@ namespace Oxide.Plugins
         private class Headquarter
         {
             public string FounderId { get; set; }
+            public string Name { get; set; }
+            public int StorageSlots { get; set; }
             public float PositionX { get; }
             public float PositionY { get; }
             public float PositionZ { get; }
@@ -231,14 +267,18 @@ namespace Oxide.Plugins
             [JsonIgnore]
             public MapMarkerGenericRadius marker;
             public DateTime DisabledAt { get; set; }
+            public float LastKnownProtectionPercent { get; set; } = 1;
+            public DateTime LastMarkerRefresh { get; set; }
 
-            public Headquarter(string user, float positionX, float positionY, float positionZ)
+            public Headquarter(string user, string name, float positionX, float positionY, float positionZ, int storageSlots = 0)
             {
                 this.FounderId = user;
+                this.Name = name;
                 this.PositionX = positionX;
                 this.PositionY = positionY;
                 this.PositionZ = positionZ;
                 this.HasProtection = true;
+                this.StorageSlots = storageSlots;
                 this.CreateMapMarker();
             }
 
@@ -259,28 +299,39 @@ namespace Oxide.Plugins
                     return;
                 }
 
-                marker = GameManager.server.CreateEntity(cFile.HeadquartersConfig.MarkerPrefab, getPosition()) as MapMarkerGenericRadius;
+                marker = GameManager.server.CreateEntity(_config.HeadquartersConfig.MarkerPrefab, getPosition()) as MapMarkerGenericRadius;
 
                 if (marker != null)
                 {
                     marker.alpha = 0.6f;
+                    marker.name = this.Name;
 
-                    var configuredProtectedColor = cFile.HeadquartersConfig.ProtectedColor;
-                    var configuredUnprotectedColor = cFile.HeadquartersConfig.UnprotectedColor;
-
-                    if (!ColorUtility.TryParseHtmlString((HasProtection && !freeForAllActive) ? configuredProtectedColor : configuredUnprotectedColor, out marker.color1))
-                    {
-                        marker.color1 = Color.black;
-                    }
-
-                    if (!ColorUtility.TryParseHtmlString((HasProtection && !freeForAllActive) ? configuredProtectedColor : configuredUnprotectedColor, out marker.color2))
-                    {
-                        marker.color2 = Color.white;
-                    }
+                    marker.color1 = Color.yellow;
+                    marker.color2 = (HasProtection && !freeForAllActive) ? getProtectionColor() : Color.red;
 
                     marker.radius = 0.2f;
                     marker.Spawn();
                     marker.SendUpdate();
+                }
+            }
+
+            private Color getProtectionColor()
+            {
+                if (LastKnownProtectionPercent > .8)
+                {
+                    return Color.green;
+                }
+                else if (LastKnownProtectionPercent > .55)
+                {
+                    return Color.yellow;
+                }
+                else if (LastKnownProtectionPercent > .3)
+                {
+                    return new Color(1f, .65f, 0f, 1f); // Orange
+                }
+                else
+                {
+                    return Color.red;
                 }
             }
 
@@ -307,8 +358,17 @@ namespace Oxide.Plugins
 
             public void RefreshMapMarker(bool freeForAllActive = false)
             {
-                RemoveMapMarker();
-                CreateMapMarker(freeForAllActive);
+                if (LastMarkerRefresh == null || DateTime.UtcNow.Subtract(LastMarkerRefresh).TotalSeconds > 5)
+                {
+                    RemoveMapMarker();
+                    CreateMapMarker(freeForAllActive);
+                    this.LastMarkerRefresh = DateTime.UtcNow;
+                }
+            }
+
+            public void RecalculateProtectionScale(float cProtectionPercent, float cProtectionPercentMinimum, float cProtectionSlotsWithoutPenalty, float cProtectionPentaltyPercentPerSlot)
+            {
+                LastKnownProtectionPercent = Mathf.Min(100, Mathf.Max((cProtectionPercent - ((this.StorageSlots - cProtectionSlotsWithoutPenalty) * cProtectionPentaltyPercentPerSlot)), cProtectionPercentMinimum)) / 100;
             }
         }
         #endregion
@@ -323,13 +383,12 @@ namespace Oxide.Plugins
         private void OnServerInitialized(bool initial)
         {
             LoadData();
-            LoadMapMarkers();
 
-            if (cFile.HeadquartersConfig.FreeForAllEnabled)
+            if (_config.HeadquartersConfig.FreeForAllEnabled)
             {
-                _ffaCheckTimer = timer.Every(5f, () =>
+                _ffaCheckTimer = timer.Every(15f, () =>
                 {
-                    if (cFile.HeadquartersConfig.FreeForAllEnabled && DateTime.UtcNow.Subtract(SaveRestore.SaveCreatedTime).TotalHours >= cFile.HeadquartersConfig.FreeForAllHoursAfterWipe)
+                    if (_config.HeadquartersConfig.FreeForAllEnabled && DateTime.UtcNow.Subtract(SaveRestore.SaveCreatedTime).TotalHours >= _config.HeadquartersConfig.FreeForAllHoursAfterWipe)
                     {
                         _freeForAllActive = true;
                         _ffaCheckTimer?.Destroy();
@@ -341,6 +400,10 @@ namespace Oxide.Plugins
                     }
                 });
             }
+
+            RefreshStorageCounts();
+
+            LoadMapMarkers();
         }
 
         private void OnServerSave()
@@ -366,15 +429,84 @@ namespace Oxide.Plugins
             RefreshMapMarkers();
 
             SendReply(player, Lang("Server_Welcome", player.UserIDString));
-            if (cFile.HeadquartersConfig.FreeForAllEnabled)
+            if (_config.HeadquartersConfig.FreeForAllEnabled)
             {
                 OutputFFAStatus(player);
             }
         }
 
+        void OnEntityBuilt(Planner plan, GameObject go)
+        {
+            if (plan == null || go == null)
+            {
+                return;
+            }
+
+            var entity = go.ToBaseEntity();
+            var player = plan.GetOwnerPlayer();
+
+            string prefabName = entity?.ShortPrefabName ?? "unknown";
+
+            if (entity == null || player == null || !StorageTypes.Contains(prefabName))
+            {
+                return;
+            }
+
+            var headquarter = GetHeadquarterAtPosition(entity.transform.position);
+
+            if (headquarter == null)
+            {
+                return;
+            }
+
+            if (!headquarter.HasMember(player.UserIDString))
+            {
+                NextTick(() =>
+                {
+                    SendReply(player, Lang("Headquarter_Deployable_Blocked", player.UserIDString));
+                    entity.Kill();
+                });
+            }
+        }
+
+        void OnItemAddedToContainer(ItemContainer container, Item item)
+        {
+            if (container == null || item == null)
+            {
+                return;
+            }
+
+            Headquarter hq = GetStorageAffectedHeadquarter(container);
+
+            if (hq != null)
+            {
+                hq.StorageSlots++;
+                var hqConfig = _config.HeadquartersConfig;
+                hq.RecalculateProtectionScale(hqConfig.ProtectionPercent, hqConfig.ProtectionPercentMinimum, hqConfig.ProtectionSlotsWithoutPenalty, hqConfig.ProtectionPenaltyPercentPerSlot);
+                hq.RefreshMapMarker(_freeForAllActive);
+            }
+        }
+
+        void OnItemRemovedFromContainer(ItemContainer container, Item item)
+        {
+            if (container == null || item == null)
+            {
+                return;
+            }
+
+            Headquarter hq = GetStorageAffectedHeadquarter(container);
+
+            if (hq != null)
+            {
+                hq.StorageSlots--;
+                var hqConfig = _config.HeadquartersConfig;
+                hq.RecalculateProtectionScale(hqConfig.ProtectionPercent, hqConfig.ProtectionPercentMinimum, hqConfig.ProtectionSlotsWithoutPenalty, hqConfig.ProtectionPenaltyPercentPerSlot);
+                hq.RefreshMapMarker(_freeForAllActive);
+            }
+        }
+
         private object OnEntityTakeDamage(BaseCombatEntity entity, HitInfo info)
         {
-
             if (_freeForAllActive)
             {
                 return null;
@@ -386,7 +518,7 @@ namespace Oxide.Plugins
 
                 bool isTC = (entity is BuildingPrivlidge);
 
-                if (attacker == null)
+                if (attacker == null || info == null)
                 {
                     return null;
                 }
@@ -404,9 +536,28 @@ namespace Oxide.Plugins
                 {
                     if (headquarter.HasProtection)
                     {
-                        // If we're still here, either its a Headquarter's TC, OR its a building block which is protected from damage for this player.
-                        SendReply(info.InitiatorPlayer, Lang("Headquarter_Protected_NoDamage", attacker.UserIDString));
-                        return true;
+                        // Headquarter TC can't be damaged
+                        if (isTC)
+                        {
+                            SendReply(info.InitiatorPlayer, Lang("Headquarter_Protected_NoDamage", attacker.UserIDString));
+                            return true;
+                        }
+                        else
+                        {
+                            var hqConfig = _config.HeadquartersConfig;
+                            headquarter.RecalculateProtectionScale(hqConfig.ProtectionPercent, hqConfig.ProtectionPercentMinimum, hqConfig.ProtectionSlotsWithoutPenalty, hqConfig.ProtectionPenaltyPercentPerSlot);
+                            float headquarterScale = headquarter.LastKnownProtectionPercent;
+                            float damageScale = Mathf.Max((1f - headquarterScale), 0f);
+                            info.damageTypes.ScaleAll(damageScale);
+                            headquarter.RefreshMapMarker(_freeForAllActive);
+
+                            if (damageScale < .01f)
+                            {
+                                SendReply(info.InitiatorPlayer, Lang("Headquarter_Protected_NoDamage", attacker.UserIDString));
+                            }
+
+                            return null;
+                        }
                     }
                     else
                     {
@@ -431,7 +582,7 @@ namespace Oxide.Plugins
         {
             foreach (KeyValuePair<string, Headquarter> currentHeadquarter in _data.AvailableHeadquarters)
             {
-                if (Vector3.Distance(position, currentHeadquarter.Value.getPosition()) <= cFile.HeadquartersConfig.Radius)
+                if (Vector3.Distance(position, currentHeadquarter.Value.getPosition()) <= _config.HeadquartersConfig.Radius)
                 {
                     return currentHeadquarter.Value;
                 }
@@ -496,7 +647,7 @@ namespace Oxide.Plugins
 
                             _data.MemberPlayers.Remove(newFounder);
 
-                            var newHQ = new Headquarter(newFounder, founderPreviousHQ.PositionX, founderPreviousHQ.PositionY, founderPreviousHQ.PositionZ);
+                            var newHQ = new Headquarter(newFounder, founderPreviousHQ.Name, founderPreviousHQ.PositionX, founderPreviousHQ.PositionY, founderPreviousHQ.PositionZ, founderPreviousHQ.StorageSlots);
 
                             founderPreviousHQ.MemberIds.ForEach(memberId => _data.MemberPlayers[memberId].FounderId = newFounder);
 
@@ -551,9 +702,9 @@ namespace Oxide.Plugins
             {
                 SendReply(player, Lang("Free_For_All_Active", player.UserIDString));
             }
-            else if (cFile.HeadquartersConfig.FreeForAllEnabled)
+            else if (_config.HeadquartersConfig.FreeForAllEnabled)
             {
-                var timeLeft = cFile.HeadquartersConfig.FreeForAllHoursAfterWipe - DateTime.UtcNow.Subtract(SaveRestore.SaveCreatedTime).TotalHours;
+                var timeLeft = _config.HeadquartersConfig.FreeForAllHoursAfterWipe - DateTime.UtcNow.Subtract(SaveRestore.SaveCreatedTime).TotalHours;
                 string outLeft;
 
                 if (timeLeft > 2)
@@ -594,6 +745,49 @@ namespace Oxide.Plugins
             }
         }
 
+        private void RefreshStorageCounts()
+        {
+            foreach (KeyValuePair<string, Headquarter> currentHeadquarter in _data.AvailableHeadquarters)
+            {
+                if (currentHeadquarter.Value.HasProtection)
+                {
+                    currentHeadquarter.Value.StorageSlots = 0;
+                }
+            }
+
+            foreach (var entity in BaseNetworkable.serverEntities)
+            {
+                string prefabName = entity.ShortPrefabName ?? "unknown";
+
+                if (!StorageTypes.Contains(prefabName))
+                {
+                    continue;
+                }
+
+                var container = entity as StorageContainer;
+
+                if (container != null)
+                {
+                    var headquarter = GetHeadquarterAtPosition(container.transform.position);
+
+                    if (headquarter != null && headquarter.HasProtection)
+                    {
+                        headquarter.StorageSlots += container.inventory.itemList.Count();
+                    }
+                }
+            }
+
+            var hqConfig = _config.HeadquartersConfig;
+
+            foreach (KeyValuePair<string, Headquarter> currentHeadquarter in _data.AvailableHeadquarters)
+            {
+                if (currentHeadquarter.Value.HasProtection)
+                {
+                    currentHeadquarter.Value.RecalculateProtectionScale(hqConfig.ProtectionPercent, hqConfig.ProtectionPercentMinimum, hqConfig.ProtectionSlotsWithoutPenalty, hqConfig.ProtectionPenaltyPercentPerSlot);
+                }
+            }
+        }
+
         private void RemoveMapMarkers()
         {
             foreach (KeyValuePair<string, Headquarter> currentHeadquarter in _data.AvailableHeadquarters)
@@ -626,8 +820,16 @@ namespace Oxide.Plugins
         }
 
         [ChatCommand("hq.start")]
-        private void cmdChatHeadquarterStart(BasePlayer player, string command)
+        private void cmdChatHeadquarterStart(BasePlayer player, string command, string[] args)
         {
+            if (args.Length == 0 || args[0].Length == 0)
+            {
+                SendReply(player, Lang("Headquarter_Require_Name", player.UserIDString));
+                return;
+            }
+
+            var hqName = args[0];
+
             var existingHeadquarterHere = GetHeadquarterAtPosition(player.transform.position);
 
             if (existingHeadquarterHere != null)
@@ -638,7 +840,7 @@ namespace Oxide.Plugins
 
             // ensure next to TC
             List<BaseCombatEntity> cblist = new List<BaseCombatEntity>();
-            Vis.Entities<BaseCombatEntity>(player.transform.position, cFile.HeadquartersConfig.DistanceToTC, cblist);
+            Vis.Entities<BaseCombatEntity>(player.transform.position, _config.HeadquartersConfig.DistanceToTC, cblist);
 
             bool nextToCupboard = false;
             BuildingPrivlidge tc = null;
@@ -668,7 +870,7 @@ namespace Oxide.Plugins
                     ((BuildingPrivlidge)tc).authorizedPlayers.Clear();
                     ((BuildingPrivlidge)tc).authorizedPlayers.Add(new ProtoBuf.PlayerNameID { username = player.name, userid = player.userID });
 
-                    _data.AvailableHeadquarters[player.UserIDString] = new Headquarter(player.UserIDString, tc.transform.position.x, tc.transform.position.y, tc.transform.position.z);
+                    _data.AvailableHeadquarters[player.UserIDString] = new Headquarter(player.UserIDString, hqName, tc.transform.position.x, tc.transform.position.y, tc.transform.position.z);
 
                     SendReply(player, Lang("Headquarter_Successful_Start", player.UserIDString));
                 }
@@ -724,7 +926,11 @@ namespace Oxide.Plugins
 
             if (existingHeadquarterHere != null)
             {
-                SendReply(player, Lang("Headquarter_Here", player.UserIDString));
+                var hqConfig = _config.HeadquartersConfig;
+                existingHeadquarterHere.RecalculateProtectionScale(hqConfig.ProtectionPercent, hqConfig.ProtectionPercentMinimum, hqConfig.ProtectionSlotsWithoutPenalty, hqConfig.ProtectionPenaltyPercentPerSlot);
+                float headquarterScale = existingHeadquarterHere.LastKnownProtectionPercent;
+                SendReply(player, Lang("Headquarter_Here_Protection_Rating", player.UserIDString, existingHeadquarterHere.Name, (headquarterScale * 100).ToString()));
+                existingHeadquarterHere.RefreshMapMarker(_freeForAllActive);
                 return;
             }
 
