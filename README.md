@@ -1,28 +1,27 @@
 ## Purpose
 
-Allows players to enjoy a better mid and end game PVP experience in Rust.  This is a hybrid raid protection system.  It is not no raid, it is not noob protect, and it is not PVE.  Players can still raid, be killed, and lose their bases with Headquarters mod.
+Allows players to enjoy an improved mid and end game PVP experience in Rust.  This is a hybrid raid protection system.  It is not no raid, it is not noob protect, and it is not PVE.  Players can still raid, be killed, and lose their bases with Headquarters mod.
 
 ## How it works
 
-Headquarters mod allows each player to have one main headquarter base which receives added protection from attack.  All their other bases function normally without any form of protection. The headquarter's protection starts out at 100% damage reduction but scales down as players store more items inside the headquarter.  Additionally, the headquarter's location and protection level is shown in the map for all to see.  
+Headquarters mod allows each player to have one main headquarter base which receives added protection.  All their other bases function normally without any form of protection. The headquarter's protection starts out at 100% damage reduction, however, this protection decreases gradually as players fill more inventory slots in storage containers inside the headquarter.  As the protection level changes, it is shown on the map for all to see.  If the player wishes to increase their headquarter's protection level they simply need to take items out of storage there.  It's a self balancing mechanism between protection and storage.  The exact ratio between this balance is up to you through the plugin configuration.
 
 * Headquarter protected bases allow players to:
-  * Design bases properly, without having to rush through the building process for fear of being raided right away.
-  * Allows for more diverse bases and creativity, rather than everyone having the same base designs.
-  * Allows casual players to play with mid and end game components (electricity, traps, turrets, etc).
-* Creates a two tier raiding system: regular bases, and headquarters.  In order to participate in headquarter raiding, a player must disable their headquarter's protection.  If they're not ready to disable the protection they can still raid non headquarter bases.
-* Self balancing protection.  As players grow more powerful they will store more items in their headquarter, this will cause its protection to be decreased.  At this point they either take the decreased protection, or they move some of their stuff to unprotected bases.
-* Free for all mode allows an admin to make the last few hours before a wipe as free for all.  In free for all headquarter protections are removed.  Admins can also manually start or stop FFA to allow for raiding events.
+  * Design bases properly without having to rush through the building process for fear of being raided right away.
+  * Allows for more diverse bases and creativity, rather than everyone having the same ultra efficient base designs.
+  * Allows casual players a chance to play with mid and end game components (electricity, traps, turrets, etc).
+* All players can raid protected headquarters (although it may not be worth it depending on its protection level) and regular bases.  The only caveat is a player from a protected headquarter *can't* damage a headquarter base which has opted to completely disable their protection.  However, members of headquarters who have completely disabled their protection *can* attack protected headquarters.  This provides an added benefit for those who take higher risk.
+* Free for all mode allows an admin to schedule a period of time where protections are disabled for everyone.  Admins can also manually start or stop FFA temporarily with console commands to allow for raiding events.
 
-## Rules
+## Additional details
 
-In order to stop abuse of headquarters, there are a few basic rules:
-
-* A player can belong to only one protected headquarter at any given time.
-* Once a player has been a member of a headquarter, they can’t start a new headquarter.
-* A player can join a friend’s headquarter at any time by authorizing with its Tool Cupboard.  If the player is already a part of a headquarter this may result in loss of the previous headquarter and or it’s building privilege (if it had other members).
-* Only the founder of a headquarter can disable its protection.  Once disabled, it can’t be re-enabled.
-* Players can not build deployables inside other player's headquarters (unless they're a member).
+* Protection is applied to HQ building blocks, Tool Cupboard (TC), and doors only (it does not protect windows or other deployables).
+* A player can belong to only one protected HQ at any given time.
+* Once a player becomes a member of a HQ, they can’t start a new headquarter, they can only switch to another HQ. 
+* A player can join or switch HQ at any time by authorizing with the new HQ's Tool Cupboard.  If the player is already a member of a HQ this may result in loss of the previous HQ and or it’s building privilege (if it had other members they will inherit it).
+* The founder of a headquarter can disable its protection.  Once disabled, it can’t be re-enabled.
+* Players can not build storage deployables (or add items to storage deployables) inside other HQs.
+* Vehicles with storage capabilities which are left inside a HQ base will eventually suffer random inventory losses as they decay.
 
 ## Permissions
 
@@ -33,7 +32,7 @@ In order to stop abuse of headquarters, there are a few basic rules:
 * `hq.clear-all` -- Removes all headquarters permanenetly.
 * `hq.start-ffa` -- Starts free for all mode manually.
 * `hq.stop-ffa` -- Stops free for all mode manually.
-* `hq.remove {player id}` -- Removes the headquarter, along with its founder and members from the plugin's data.  This will allow all associated players to build another headquarter.
+* `hq.remove {founder player's id}` -- Removes the headquarter, along with its founder and members from the plugin's data.  This will allow all member players to build another headquarter.
 
 ## Chat Commands
 
@@ -45,18 +44,28 @@ In order to stop abuse of headquarters, there are a few basic rules:
 
 ## Configuration
 
+- `Radius`: The radius of the HQ. This should match the Tool Cupboard's range (or slightly smaller).
+- `DistanceToTC`: How close to the TC you need to be to start a headquarter.
+- `FreeForAllEnabled`: Whether scheduled free for all is enabled or disabled.
+- `FreeForAllHoursAfterWipe`: How many hours from the previous wipe until FFA is scheduled to be enabled.
+- `MarkerPrefab`: Prefab for marker.  Should not need to be changed unless the game changes.
+- `ProtectionPercent`: Protection level offered to a protected headquarter base (without storage penalties).
+- `ProtectionPercentMinimum`: Lowest protection level offered to a protected headquarter (even with high item count).
+- `ProtectionSlotsWithoutPenalty`: How many slots can be filled before penalties start to accrue.
+- `ProtectionPenaltyPercentPerSlot`: Percentage penalty per slot filled past the `ProtectionSlotsWithoutPenalty`.
+
 ```json
 {
   "HeadquarterConfig": {
-    "Radius": 50.0, // How large a headquarter is.. should match the TC's range
-    "DistanceToTC": 5.0, // How close to the TC you need to be to start a headquarter.
-    "FreeForAllEnabled": true, // Enables free for all.
-    "FreeForAllHoursAfterWipe": 144.0 // How long after the last wipe will FFA be enabled.
-    "MarkerPrefab": "assets/prefabs/tools/map/genericradiusmarker.prefab",  // Prefab path
-    "ProtectionPercent": 100.0, // Default protection level offered to a protected headquarter base.
-    "ProtectionPercentMinimum": 10.0, // Lowest protection level offered to a protected headquarter base.
-    "ProtectionSlotsWithoutPenalty": 30.0, // Amount of slots filled without reduction to base protection percent.
-    "ProtectionPenaltyPercentPerSlot": 2.0 // Amount of reduction to base protection percent from filling one slot of a storage container.
+    "Radius": 27.5,
+    "DistanceToTC": 2.0, 
+    "FreeForAllEnabled": true,
+    "FreeForAllHoursAfterWipe": 144.0,
+    "MarkerPrefab": "assets/prefabs/tools/map/genericradiusmarker.prefab",
+    "ProtectionPercent": 100.0,
+    "ProtectionPercentMinimum": 10.0,
+    "ProtectionSlotsWithoutPenalty": 30.0,
+    "ProtectionPenaltyPercentPerSlot": 2.0
   }
 }
 ```

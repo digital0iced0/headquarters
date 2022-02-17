@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Headquarters", "digital0iced0", "0.1.1")]
+    [Info("Headquarters", "digital0iced0", "0.1.2")]
     [Description("Allows players to have one protected headquarters base until they're ready to participate in raiding.")]
     public class Headquarters : RustPlugin
     {
@@ -66,13 +66,13 @@ namespace Oxide.Plugins
 
         private class HeadquartersConfig
         {
-            public float Radius { get; set; } = 50f;
+            public float Radius { get; set; } = 27.5;
 
-            public float DistanceToTC { get; set; } = 5f;
+            public float DistanceToTC { get; set; } = 2;
 
             public bool FreeForAllEnabled { get; set; } = true;
 
-            public float FreeForAllHoursAfterWipe { get; set; } = 144f;
+            public float FreeForAllHoursAfterWipe { get; set; } = 144;
 
             public string MarkerPrefab { get; set; } = "assets/prefabs/tools/map/genericradiusmarker.prefab";
 
@@ -82,7 +82,7 @@ namespace Oxide.Plugins
 
             public float ProtectionSlotsWithoutPenalty { get; set; } = 30;
 
-            public float ProtectionPenaltyPercentPerSlot { get; set; } = 2;
+            public float ProtectionPenaltyPercentPerSlot { get; set; } = 1.5;
         }
 
 
@@ -145,7 +145,7 @@ namespace Oxide.Plugins
                 ["Cmd_Headquarter_Remove_Fail"] = "Could not find a HQ belonging to this founder.",
 
                 ["Help_Welcome"] = "Welcome to Headquarters! This mod allows you to provide protection for one of your bases by designating it your headquarter (HQ).",
-                ["Help_Details"] = "A few simple things to keep in mind: Protection is applied to your HQ building blocks, Tool Cupboard (TC), and doors only (it does not protect windows or other deployables).  You can only belong to one HQ at any given time. You can switch HQ by authenticating at someone else's TC but you will lose your previous HQ.  If you place too many items inside your HQ it will reduce its protection level.  Removing items from the HQ will increase its protection again.  Vehicles with storage capabilities left inside a HQ base will eventually suffer random inventory losses.",
+                ["Help_Details"] = "A few simple things to keep in mind: Protection is applied to your HQ building blocks, Tool Cupboard (TC), and doors only (it does not protect windows or other deployables).  You can only belong to one HQ at any given time. You can switch HQ by authenticating at someone else's TC but you will lose your previous HQ.  If you place too many items inside your HQ it will reduce its protection level.  Removing items from the HQ will increase its protection again.  Vehicles with storage capabilities left inside a HQ base will eventually suffer random inventory losses as they decay.",
                 ["Help_Raid"] = "You can raid other protected HQ bases but you should check the map to see if they have a high level of protection before attempting to do so (since it may not be worth it).  Non HQ bases can be raided by everyone.  Unprotected HQs (disabled by their founder) can't be damaged by members of a protected HQ.  Their members can damage your protected HQ base though, so ensure you keep a high protection level.",
                 ["Help_Start"] = "Starts a named protected Headquarter at one of your bases' Tool Cupboard.",
                 ["Help_Start_Name"] = "(name)",
