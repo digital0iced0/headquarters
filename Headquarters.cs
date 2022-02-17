@@ -66,23 +66,23 @@ namespace Oxide.Plugins
 
         private class HeadquartersConfig
         {
-            public float Radius { get; set; } = 27.5;
+            public float Radius { get; set; } = 27.5f;
 
-            public float DistanceToTC { get; set; } = 2;
+            public float DistanceToTC { get; set; } = 2f;
 
             public bool FreeForAllEnabled { get; set; } = true;
 
-            public float FreeForAllHoursAfterWipe { get; set; } = 144;
+            public float FreeForAllHoursAfterWipe { get; set; } = 144f;
 
             public string MarkerPrefab { get; set; } = "assets/prefabs/tools/map/genericradiusmarker.prefab";
 
-            public float ProtectionPercent { get; set; } = 100;
+            public float ProtectionPercent { get; set; } = 100f;
 
-            public float ProtectionPercentMinimum { get; set; } = 10;
+            public float ProtectionPercentMinimum { get; set; } = 10f;
 
-            public float ProtectionSlotsWithoutPenalty { get; set; } = 30;
+            public float ProtectionSlotsWithoutPenalty { get; set; } = 30f;
 
-            public float ProtectionPenaltyPercentPerSlot { get; set; } = 1.5;
+            public float ProtectionPenaltyPercentPerSlot { get; set; } = 1.5f;
         }
 
 
