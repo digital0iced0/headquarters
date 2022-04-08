@@ -39,7 +39,7 @@ Headquarters mod allows each player to have one main headquarter base which rece
 
 * `/hq.help` -- Provides a list of help commands.
 * `/hq.start myhq` -- Starts a headquarter at your nearest Tool Cupboard with the name "myhq".
-* `/hq.disable-protection` -- (Founder Only) Allows you to disable your headquarter's protection. This will allow you to participate in headquarter raiding of other non protected headquarters.
+* `/hq.disband` -- (Founder Only) Allows you to disband your current headquarter.
 * `/hq.ffa` -- Provides details on how long until free for all is activated.
 * `/hq.check` -- Checks if there is a headquarter at this location, and lets the player know the actual protection level of that headquarter.
 * `/hq.teleport` -- If enabled, allows player to teleport to their HQ.
