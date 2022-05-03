@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Headquarters", "digital0iced0", "0.1.3")]
+    [Info("Headquarters", "digital0iced0", "0.1.4")]
     [Description("Allows players to have one protected headquarter base.")]
     public class Headquarters : RustPlugin
     {
@@ -392,7 +392,7 @@ namespace Oxide.Plugins
                     return;
                 }
 
-                LastKnownProtectionPercent = Mathf.Min(100, Mathf.Max((cProtectionPercent - ((this.StorageSlots - cProtectionSlotsWithoutPenalty) * cProtectionPentaltyPercentPerSlot)), cProtectionPercentMinimum)) / 100;
+                LastKnownProtectionPercent = Mathf.Min(cProtectionPercent, Mathf.Max((cProtectionPercent - ((this.StorageSlots - cProtectionSlotsWithoutPenalty) * cProtectionPentaltyPercentPerSlot)), cProtectionPercentMinimum)) / 100;
             }
         }
         #endregion
