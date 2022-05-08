@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Headquarters", "digital0iced0", "0.1.4")]
+    [Info("Headquarters", "digital0iced0", "0.1.5")]
     [Description("Allows players to have one protected headquarter base.")]
     public class Headquarters : RustPlugin
     {
@@ -620,7 +620,7 @@ namespace Oxide.Plugins
 
         private object OnEntityTakeDamage(BuildingPrivlidge entity, HitInfo info)
         {
-            if (_freeForAllActive || entity == null || info == null)
+            if (entity == null || info == null)
             {
                 return null;
             }
@@ -635,7 +635,7 @@ namespace Oxide.Plugins
                 {
                     SendReply(attacker, Lang("Headquarter_Protected_NoDamage", attacker.UserIDString));
                 }
-                
+
                 return true;
             }
 
@@ -655,24 +655,21 @@ namespace Oxide.Plugins
 
         private object HandleBuildingDamage(BaseCombatEntity entity, HitInfo info)
         {
-            if (_freeForAllActive || entity == null || info == null)
+            if (_freeForAllActive || entity == null || info == null || !info.damageTypes.IsConsideredAnAttack())
             {
                 return null;
             }
 
-            var attacker = info?.Initiator?.ToPlayer();
+            var attacker = info.Initiator?.ToPlayer();
 
-            if (attacker == null || info == null)
+            if (attacker != null)
             {
-                return null;
-            }
+                bool isAttackerAuthed = attacker.IsBuildingAuthed(entity.transform.position, entity.transform.rotation, entity.bounds);
 
-            bool isAttackerAuthed = attacker.IsBuildingAuthed(entity.transform.position, entity.transform.rotation, entity.bounds);
-
-
-            if (isAttackerAuthed)
-            {
-                return null;
+                if (isAttackerAuthed)
+                {
+                    return null;
+                }
             }
 
             var headquarter = GetHeadquarterAtPosition(entity.transform.position);
@@ -686,7 +683,7 @@ namespace Oxide.Plugins
                 info.damageTypes.ScaleAll(damageScale);
                 headquarter.RefreshMapMarker(_freeForAllActive);
 
-                if (damageScale < .01f)
+                if (damageScale < .01f && attacker != null)
                 {
                     SendReply(info.InitiatorPlayer, Lang("Headquarter_Protected_NoDamage", attacker.UserIDString));
                 }
@@ -1078,7 +1075,7 @@ namespace Oxide.Plugins
         [ChatCommand("hq.teleport")]
         private void cmdChatHeadquarterTeleport(BasePlayer player, string command)
         {
-            
+
             if (_config.HeadquartersConfig.TeleportEnabled)
             {
                 var playerHQ = GetPlayerHeadquarter(player);
@@ -1087,7 +1084,7 @@ namespace Oxide.Plugins
                 {
                     player.transform.position = playerHQ.getPosition();
                 }
-            }            
+            }
         }
 
         [ChatCommand("hq.ffa")]
