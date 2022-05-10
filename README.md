@@ -52,7 +52,7 @@ Headquarters mod allows each player to have one main headquarter base which rece
 - `TeleportEnabled`: Whether players can teleport to their HQ (disabled by default).
 - `DisbandPenaltyHours`: Number of hours HQ members must wait before being able to start new Headquarters after disbanding their previous HQ.
 - `DistanceToTC`: How close to the TC you need to be to start a headquarter (Probably shouldn't modify).
-- `InvulnerableTC`: Enabled by default, prevents all damage to TCs.
+- `InvulnerableTC`: Enabled by default, prevents all damage to HQ TCs.
 - `FreeForAllEnabled`: Whether scheduled free for all is enabled or disabled.
 - `FreeForAllHoursAfterWipe`: How many hours from the previous wipe until FFA is scheduled to be enabled.
 - `MarkerPrefab`: Prefab for marker.  Should not need to be changed unless the game changes.
