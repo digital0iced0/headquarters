@@ -21,6 +21,7 @@ Headquarters mod allows each player to have one main headquarter base which rece
 * The founder of a headquarter can elect to disband it.  However, this will come with a penalty waiting time before being able to start a new HQ.
 * Players can not build storage deployables (or add items to storage deployables) inside other HQs.
 * Vehicles with storage capabilities which are left inside a HQ base will eventually suffer random inventory losses as they decay.
+* Headquarters can be destroyed through raiding if the InvulnerableTC option is disabled in the config. 
 
 ## Permissions
 
@@ -51,6 +52,7 @@ Headquarters mod allows each player to have one main headquarter base which rece
 - `TeleportEnabled`: Whether players can teleport to their HQ (disabled by default).
 - `DisbandPenaltyHours`: Number of hours HQ members must wait before being able to start new Headquarters after disbanding their previous HQ.
 - `DistanceToTC`: How close to the TC you need to be to start a headquarter (Probably shouldn't modify).
+- `InvulnerableTC`: Enabled by default, prevents all damage to TCs.
 - `FreeForAllEnabled`: Whether scheduled free for all is enabled or disabled.
 - `FreeForAllHoursAfterWipe`: How many hours from the previous wipe until FFA is scheduled to be enabled.
 - `MarkerPrefab`: Prefab for marker.  Should not need to be changed unless the game changes.
@@ -58,6 +60,7 @@ Headquarters mod allows each player to have one main headquarter base which rece
 - `ProtectionPercentMinimum`: Lowest protection level offered to a protected headquarter (even with high item count).
 - `ProtectionSlotsWithoutPenalty`: How many slots can be filled before penalties start to accrue.
 - `ProtectionPenaltyPercentPerSlot`: Percentage penalty per slot filled past the `ProtectionSlotsWithoutPenalty`.
+- `ProtectionConstantSecondsAfterDamage`: Maintains the protection level constant while a raid is happening.  The seconds represents the time it remains constant after the last time the base was damaged.
 
 ```json
 {
@@ -67,13 +70,15 @@ Headquarters mod allows each player to have one main headquarter base which rece
     "TeleportEnabled": false,
     "DisbandPenaltyHours": 3,
     "DistanceToTC": 2.0,
+    "InvulnerableTC": false,
     "FreeForAllEnabled": true,
     "FreeForAllHoursAfterWipe": 144.0,
     "MarkerPrefab": "assets/prefabs/tools/map/genericradiusmarker.prefab",
     "ProtectionPercent": 100.0,
     "ProtectionPercentMinimum": 10.0,
     "ProtectionSlotsWithoutPenalty": 30.0,
-    "ProtectionPenaltyPercentPerSlot": 1.5
+    "ProtectionPenaltyPercentPerSlot": 1.5,
+    "ProtectionConstantSecondsAfterDamage": 300
   }
 }
 ```

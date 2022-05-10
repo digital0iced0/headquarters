@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Headquarters", "digital0iced0", "0.1.5")]
+    [Info("Headquarters", "digital0iced0", "0.1.6")]
     [Description("Allows players to have one protected headquarter base.")]
     public class Headquarters : RustPlugin
     {
@@ -76,6 +76,8 @@ namespace Oxide.Plugins
 
             public float DistanceToTC { get; set; } = 2f;
 
+            public bool InvulnerableTC { get; set; } = true;
+
             public bool FreeForAllEnabled { get; set; } = true;
 
             public float FreeForAllHoursAfterWipe { get; set; } = 144f;
@@ -89,6 +91,8 @@ namespace Oxide.Plugins
             public float ProtectionSlotsWithoutPenalty { get; set; } = 30f;
 
             public float ProtectionPenaltyPercentPerSlot { get; set; } = 1.5f;
+
+            public int ProtectionConstantSecondsAfterDamage { get; set; } = 300;
         }
 
 
@@ -119,7 +123,7 @@ namespace Oxide.Plugins
             {
                 ["Server_Welcome"] = "This server is running Headquarters mod.  It allows you to provide added defense to one of your bases.  For more details type /hq.help in chat",
                 ["Headquarter_Protected_NoDamage"] = "This base is under the protection of a HQ.  It can't be damaged at this time.",
-                ["Headquarter_Exists_Cant_Clear_List"] = "A HQ exists at this location.  You must disband it before being able to clear its privilege list.",
+                ["Headquarter_Exists_Cant_Clear_List"] = "A HQ exists at this location.  You can't clear its privilege list.",
                 ["Headquarter_Exists_Cant_Deauth"] = "A HQ exists at this location.  You must disband it before being able to deauthorize from it's Tool Cupboard.",
                 ["Headquarter_Inside_Headquarter"] = "You can't create a HQ inside another HQ.",
                 ["Headquarter_Not_Inside"] = "You're not inside a HQ.",
@@ -267,6 +271,8 @@ namespace Oxide.Plugins
             public bool MapMarkerEnabled { get; set; }
             public DateTime LastMarkerRefresh { get; set; }
 
+            public DateTime LastDamaged { get; set; }
+
             public Headquarter(string user, string name, float positionX, float positionY, float positionZ, int storageSlots = 0, bool mapMarkerEnabled = true)
             {
                 this.FounderId = user;
@@ -277,6 +283,7 @@ namespace Oxide.Plugins
                 this.IsActive = true;
                 this.StorageSlots = storageSlots;
                 this.MapMarkerEnabled = mapMarkerEnabled;
+                this.LastDamaged = DateTime.Now.AddDays(-1);
                 this.CreateMapMarker();
             }
 
@@ -288,6 +295,11 @@ namespace Oxide.Plugins
             public Vector3 getPosition()
             {
                 return new Vector3(this.PositionX, this.PositionY, this.PositionZ);
+            }
+
+            public void MarkDamaged()
+            {
+                this.LastDamaged = DateTime.UtcNow;
             }
 
             public void CreateMapMarker(bool freeForAllActive = false)
@@ -384,15 +396,20 @@ namespace Oxide.Plugins
                 }
             }
 
-            public void RecalculateProtectionScale(float cProtectionPercent, float cProtectionPercentMinimum, float cProtectionSlotsWithoutPenalty, float cProtectionPentaltyPercentPerSlot)
+            public void RecalculateProtectionScale(HeadquartersConfig c)
             {
                 if (!IsActive)
                 {
-                    LastKnownProtectionPercent = 0;
+                    this.LastKnownProtectionPercent = 0;
                     return;
                 }
 
-                LastKnownProtectionPercent = Mathf.Min(cProtectionPercent, Mathf.Max((cProtectionPercent - ((this.StorageSlots - cProtectionSlotsWithoutPenalty) * cProtectionPentaltyPercentPerSlot)), cProtectionPercentMinimum)) / 100;
+                if (DateTime.UtcNow.Subtract(LastDamaged).TotalSeconds < c.ProtectionConstantSecondsAfterDamage)
+                {
+                    return;
+                }
+
+                this.LastKnownProtectionPercent = Mathf.Min(c.ProtectionPercent, Mathf.Max((c.ProtectionPercent - ((this.StorageSlots - c.ProtectionSlotsWithoutPenalty) * c.ProtectionPenaltyPercentPerSlot)), c.ProtectionPercentMinimum)) / 100;
             }
         }
         #endregion
@@ -549,8 +566,7 @@ namespace Oxide.Plugins
             if (hq != null)
             {
                 hq.StorageSlots++;
-                var hqConfig = _config.HeadquartersConfig;
-                hq.RecalculateProtectionScale(hqConfig.ProtectionPercent, hqConfig.ProtectionPercentMinimum, hqConfig.ProtectionSlotsWithoutPenalty, hqConfig.ProtectionPenaltyPercentPerSlot);
+                hq.RecalculateProtectionScale(_config.HeadquartersConfig);
                 hq.RefreshMapMarker(_freeForAllActive);
             }
         }
@@ -574,8 +590,7 @@ namespace Oxide.Plugins
             if (hq != null)
             {
                 hq.StorageSlots--;
-                var hqConfig = _config.HeadquartersConfig;
-                hq.RecalculateProtectionScale(hqConfig.ProtectionPercent, hqConfig.ProtectionPercentMinimum, hqConfig.ProtectionSlotsWithoutPenalty, hqConfig.ProtectionPenaltyPercentPerSlot);
+                hq.RecalculateProtectionScale(_config.HeadquartersConfig);
                 hq.RefreshMapMarker(_freeForAllActive);
             }
         }
@@ -618,11 +633,33 @@ namespace Oxide.Plugins
             return null;
         }
 
+        private void OnEntityDeath(BuildingPrivlidge entity, HitInfo info)
+        {
+            if (entity == null || info == null)
+            {
+                return;
+            }
+
+            var headquarter = GetHeadquarterAtPosition(entity.transform.position);
+
+            if (headquarter != null && headquarter.IsActive)
+            {
+                headquarter.IsActive = false;
+                headquarter.DisbandedAt = DateTime.UtcNow;
+                headquarter.RefreshMapMarker();
+            }
+        }
+
         private object OnEntityTakeDamage(BuildingPrivlidge entity, HitInfo info)
         {
             if (entity == null || info == null)
             {
                 return null;
+            }
+
+            if (!_config.HeadquartersConfig.InvulnerableTC)
+            {
+                return HandleBuildingDamage(entity, info);
             }
 
             var headquarter = GetHeadquarterAtPosition(entity.transform.position);
@@ -676,8 +713,8 @@ namespace Oxide.Plugins
 
             if (headquarter != null && headquarter.IsActive)
             {
-                var hqConfig = _config.HeadquartersConfig;
-                headquarter.RecalculateProtectionScale(hqConfig.ProtectionPercent, hqConfig.ProtectionPercentMinimum, hqConfig.ProtectionSlotsWithoutPenalty, hqConfig.ProtectionPenaltyPercentPerSlot);
+                headquarter.RecalculateProtectionScale(_config.HeadquartersConfig);
+                headquarter.MarkDamaged();
                 float headquarterScale = headquarter.LastKnownProtectionPercent;
                 float damageScale = Mathf.Max((1f - headquarterScale), 0f);
                 info.damageTypes.ScaleAll(damageScale);
@@ -914,8 +951,7 @@ namespace Oxide.Plugins
                 }
             }
 
-            var hqConfig = _config.HeadquartersConfig;
-            headquarter.RecalculateProtectionScale(hqConfig.ProtectionPercent, hqConfig.ProtectionPercentMinimum, hqConfig.ProtectionSlotsWithoutPenalty, hqConfig.ProtectionPenaltyPercentPerSlot);
+            headquarter.RecalculateProtectionScale(_config.HeadquartersConfig);
         }
 
         private void DeauthPlayerFromTC(BasePlayer player, BuildingPrivlidge privilege)
@@ -1100,8 +1136,7 @@ namespace Oxide.Plugins
 
             if (existingHeadquarterHere != null)
             {
-                var hqConfig = _config.HeadquartersConfig;
-                existingHeadquarterHere.RecalculateProtectionScale(hqConfig.ProtectionPercent, hqConfig.ProtectionPercentMinimum, hqConfig.ProtectionSlotsWithoutPenalty, hqConfig.ProtectionPenaltyPercentPerSlot);
+                existingHeadquarterHere.RecalculateProtectionScale(_config.HeadquartersConfig);
                 float headquarterScale = existingHeadquarterHere.LastKnownProtectionPercent;
                 SendReply(player, Lang("Headquarter_Here_Protection_Rating", player.UserIDString, existingHeadquarterHere.Name, (headquarterScale * 100).ToString()));
                 existingHeadquarterHere.RefreshMapMarker(_freeForAllActive);
@@ -1155,8 +1190,7 @@ namespace Oxide.Plugins
             foreach (KeyValuePair<string, Headquarter> currentHeadquarter in _data.AvailableHeadquarters)
             {
                 currentHeadquarter.Value.MapMarkerEnabled = true;
-                var hqConfig = _config.HeadquartersConfig;
-                currentHeadquarter.Value.RecalculateProtectionScale(hqConfig.ProtectionPercent, hqConfig.ProtectionPercentMinimum, hqConfig.ProtectionSlotsWithoutPenalty, hqConfig.ProtectionPenaltyPercentPerSlot);
+                currentHeadquarter.Value.RecalculateProtectionScale(_config.HeadquartersConfig);
                 currentHeadquarter.Value.RefreshMapMarker(_freeForAllActive);
             }
         }
