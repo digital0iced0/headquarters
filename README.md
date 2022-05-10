@@ -61,7 +61,8 @@ Headquarters mod allows each player to have one main headquarter base which rece
 - `ProtectionSlotsWithoutPenalty`: How many slots can be filled before penalties start to accrue.
 - `ProtectionPenaltyPercentPerSlot`: Percentage penalty per slot filled past the `ProtectionSlotsWithoutPenalty`.
 - `ProtectionConstantSecondsAfterDamage`: Maintains the protection level constant while a raid is happening.  The seconds represents the time it remains constant after the last time the base was damaged.
-
+- `MessagePlayersHeadquarterAttacked`: Whether to message all players when a headquarter is attacked.  Uses `ProtectionConstantSecondsAfterDamage` seconds to determine how often to send the message.
+- `MessagePlayersHeadquarterDestroyed`: Whether to message all players when a headquarter is destroyed.
 ```json
 {
   "HeadquartersConfig": {
@@ -78,7 +79,9 @@ Headquarters mod allows each player to have one main headquarter base which rece
     "ProtectionPercentMinimum": 10.0,
     "ProtectionSlotsWithoutPenalty": 30.0,
     "ProtectionPenaltyPercentPerSlot": 1.5,
-    "ProtectionConstantSecondsAfterDamage": 300
+    "ProtectionConstantSecondsAfterDamage": 300,
+    "MessagePlayersHeadquarterAttacked": true,
+    "MessagePlayersHeadquarterDestroyed": true
   }
 }
 ```

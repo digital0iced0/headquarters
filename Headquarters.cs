@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Headquarters", "digital0iced0", "0.1.6")]
+    [Info("Headquarters", "digital0iced0", "0.1.7")]
     [Description("Allows players to have one protected headquarter base.")]
     public class Headquarters : RustPlugin
     {
@@ -93,6 +93,10 @@ namespace Oxide.Plugins
             public float ProtectionPenaltyPercentPerSlot { get; set; } = 1.5f;
 
             public int ProtectionConstantSecondsAfterDamage { get; set; } = 300;
+
+            public bool MessagePlayersHeadquarterAttacked { get; set; } = true;
+
+            public bool MessagePlayersHeadquarterDestroyed { get; set; } = true;
         }
 
 
@@ -144,6 +148,8 @@ namespace Oxide.Plugins
                 ["Headquarter_Require_Name"] = "You must provide a name for your HQ.",
                 ["Headquarter_Deployable_Blocked"] = "You can't deploy this item inside someone else's HQ.",
                 ["Headquarter_Disband_Incomplete"] = "Your headquarter is still in the process of disbanding.  Please try again later.",
+                ["Headquarter_Being_Attacked"] = "Allies of {0}, the time to honor your alliance has come!  {1} has initiated an attack!",
+                ["Headquarter_Destroyed"] = "{0} has fallen!",
 
                 ["Free_For_All_Active"] = "<color=green>HQ free for all is active! HQ protections are disabled!</color>",
                 ["Free_For_All_Stopped"] = "<color=red>HQ free for all is deactivated!</color>",
@@ -284,6 +290,7 @@ namespace Oxide.Plugins
                 this.StorageSlots = storageSlots;
                 this.MapMarkerEnabled = mapMarkerEnabled;
                 this.LastDamaged = DateTime.Now.AddDays(-1);
+                this.LastMarkerRefresh = DateTime.Now.AddDays(-1);
                 this.CreateMapMarker();
             }
 
@@ -316,8 +323,16 @@ namespace Oxide.Plugins
                     marker.alpha = 0.6f;
                     marker.name = this.Name;
 
-                    marker.color1 = (freeForAllActive || !IsActive) ? Color.red : Color.yellow;
-                    marker.color2 = (freeForAllActive) ? Color.red : getProtectionColor();
+                    if (IsActive)
+                    {
+                        marker.color1 = (freeForAllActive) ? Color.red : Color.yellow;
+                        marker.color2 = (freeForAllActive) ? Color.red : getProtectionColor();
+                    }
+                    else
+                    {
+                        marker.color1 = Color.black;
+                        marker.color2 = Color.black;
+                    }
 
                     marker.radius = 0.2f;
                     marker.Spawn();
@@ -356,14 +371,14 @@ namespace Oxide.Plugins
                 }
             }
 
-            public void RefreshMapMarker(bool freeForAllActive = false)
+            public void RefreshMapMarker(bool freeForAllActive = false, bool forceUpdate = false)
             {
                 if (!MapMarkerEnabled)
                 {
                     return;
                 }
 
-                if (LastMarkerRefresh == null || DateTime.UtcNow.Subtract(LastMarkerRefresh).TotalSeconds > 10)
+                if (forceUpdate || DateTime.UtcNow.Subtract(LastMarkerRefresh).TotalSeconds > 10)
                 {
                     RemoveMapMarker();
                     CreateMapMarker(freeForAllActive);
@@ -549,14 +564,14 @@ namespace Oxide.Plugins
 
         void OnItemAddedToContainer(ItemContainer container, Item item)
         {
-            if (container == null || item == null)
+            if (container == null || item == null || container.entityOwner == null || container.entityOwner.transform == null || container.entityOwner.transform.position == null)
             {
                 return;
             }
 
-            string prefabName = container?.entityOwner?.ShortPrefabName ?? "unknown";
+            string prefabName = container.entityOwner.ShortPrefabName ?? "unknown";
 
-            if (container == null || !StorageTypes.Contains(prefabName))
+            if (!StorageTypes.Contains(prefabName))
             {
                 return;
             }
@@ -635,7 +650,7 @@ namespace Oxide.Plugins
 
         private void OnEntityDeath(BuildingPrivlidge entity, HitInfo info)
         {
-            if (entity == null || info == null)
+            if (entity == null)
             {
                 return;
             }
@@ -646,7 +661,9 @@ namespace Oxide.Plugins
             {
                 headquarter.IsActive = false;
                 headquarter.DisbandedAt = DateTime.UtcNow;
-                headquarter.RefreshMapMarker();
+                headquarter.RefreshMapMarker(_freeForAllActive, true);
+
+                MessageAllPlayersHeadquarterDestroyed(headquarter);
             }
         }
 
@@ -714,7 +731,6 @@ namespace Oxide.Plugins
             if (headquarter != null && headquarter.IsActive)
             {
                 headquarter.RecalculateProtectionScale(_config.HeadquartersConfig);
-                headquarter.MarkDamaged();
                 float headquarterScale = headquarter.LastKnownProtectionPercent;
                 float damageScale = Mathf.Max((1f - headquarterScale), 0f);
                 info.damageTypes.ScaleAll(damageScale);
@@ -724,6 +740,12 @@ namespace Oxide.Plugins
                 {
                     SendReply(info.InitiatorPlayer, Lang("Headquarter_Protected_NoDamage", attacker.UserIDString));
                 }
+                else if (damageScale > .01)
+                {
+                    MessageAllPlayersHeadquarterBeingAttacked(headquarter, attacker);
+                }
+
+                headquarter.MarkDamaged();
 
                 return null;
             }
@@ -963,6 +985,31 @@ namespace Oxide.Plugins
                 privilege.authorizedPlayers.Remove(found);
             }
         }
+
+        private void MessageAllPlayersHeadquarterBeingAttacked(Headquarter hq, BasePlayer attacker)
+        {
+            if (attacker != null && _config.HeadquartersConfig.MessagePlayersHeadquarterAttacked && DateTime.UtcNow.Subtract(hq.LastDamaged).TotalSeconds > _config.HeadquartersConfig.ProtectionConstantSecondsAfterDamage)
+            {
+                Headquarter attackerHQ = GetPlayerHeadquarter(attacker);
+                String attackerString = attackerHQ == null ? attacker.displayName : attackerHQ.Name;
+
+                foreach (var player in BasePlayer.activePlayerList)
+                {
+                    PrintToChat(player, Lang("Headquarter_Being_Attacked", player.UserIDString, hq.Name, attackerString));
+                }
+            }
+        }
+
+        private void MessageAllPlayersHeadquarterDestroyed(Headquarter hq)
+        {
+            if (_config.HeadquartersConfig.MessagePlayersHeadquarterDestroyed)
+            {
+                foreach (var player in BasePlayer.activePlayerList)
+                {
+                    PrintToChat(player, Lang("Headquarter_Destroyed", player.UserIDString, hq.Name));
+                }
+            }
+        }
         #endregion
 
         #region Commands
@@ -1087,7 +1134,7 @@ namespace Oxide.Plugins
             {
                 _data.AvailableHeadquarters[player.UserIDString].IsActive = false;
                 _data.AvailableHeadquarters[player.UserIDString].DisbandedAt = DateTime.UtcNow;
-                _data.AvailableHeadquarters[player.UserIDString].RefreshMapMarker();
+                _data.AvailableHeadquarters[player.UserIDString].RefreshMapMarker(_freeForAllActive);
                 SendReply(player, Lang("Headquarter_Disband_Started", player.UserIDString));
                 return;
             }
