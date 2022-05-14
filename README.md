@@ -42,7 +42,7 @@ Headquarters mod allows each player to have one main headquarter base which rece
 * `/hq.start myhq` -- Starts a headquarter at your nearest Tool Cupboard with the name "myhq".
 * `/hq.disband` -- (Founder Only) Allows you to disband your current headquarter.
 * `/hq.ffa` -- Provides details on how long until free for all is activated.
-* `/hq.check` -- Checks if there is a headquarter at this location, and lets the player know the actual protection level of that headquarter.
+* `/hq.check` -- Checks if there is a headquarter at this location, and lets the player know the actual protection level of that headquarter.  Also lets the player know all protection related config values.
 * `/hq.teleport` -- If enabled, allows player to teleport to their HQ.
 
 ## Configuration
@@ -63,6 +63,10 @@ Headquarters mod allows each player to have one main headquarter base which rece
 - `ProtectionConstantSecondsAfterDamage`: Maintains the protection level constant while a raid is happening.  The seconds represents the time it remains constant after the last time the base was damaged.
 - `MessagePlayersHeadquarterAttacked`: Whether to message all players when a headquarter is attacked.  Uses `ProtectionConstantSecondsAfterDamage` seconds to determine how often to send the message.
 - `MessagePlayersHeadquarterDestroyed`: Whether to message all players when a headquarter is destroyed.
+- `UIEnabled`: Whether UI functionality is displayed.
+- `UIRefreshRateSeconds`: How often the UI will update after a change occurs to protection.  Default is 0, however if server performance is suffering, you can increase the value.
+- `UIAnchorMin`: UI position min.
+- `UIAnchorMax`: UI position max.
 ```json
 {
   "HeadquartersConfig": {
@@ -81,7 +85,17 @@ Headquarters mod allows each player to have one main headquarter base which rece
     "ProtectionPenaltyPercentPerSlot": 1.5,
     "ProtectionConstantSecondsAfterDamage": 300,
     "MessagePlayersHeadquarterAttacked": true,
-    "MessagePlayersHeadquarterDestroyed": true
+    "MessagePlayersHeadquarterDestroyed": true,
+    "UIEnabled": true,
+    "UIRefreshRateSeconds": 0,
+    "UIAnchorMin": {
+      "X": 0.83,
+      "Y": 0.93
+    },
+    "UIAnchorMax": {
+      "X": 0.995,
+      "Y": 0.99
+    }
   }
 }
 ```
