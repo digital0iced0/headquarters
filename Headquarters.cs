@@ -9,7 +9,7 @@ using Oxide.Game.Rust.Cui;
 
 namespace Oxide.Plugins
 {
-    [Info("Headquarters", "digital0iced0", "0.2.0")]
+    [Info("Headquarters", "digital0iced0", "0.2.1")]
     [Description("Allows players to have one protected headquarter base.")]
     public class Headquarters : RustPlugin
     {
@@ -41,6 +41,7 @@ namespace Oxide.Plugins
             "campfire",
             "furnace.large",
             "furnace",
+            "coffinstorage",
             "box.wooden.large",
             "small_stash_deployed",
             "refinery_small_deployed",
@@ -473,7 +474,7 @@ namespace Oxide.Plugins
             public static Rgba TextColor = new Rgba(255, 255, 255, .5f);
 
             public static CuiElementContainer Container(string name, string bgColor, Anchor Min, Anchor Max,
-                string parent = "Overlay", float fadeOut = 0f, float fadeIn = 0f)
+                string parent = "Hud", float fadeOut = 0f, float fadeIn = 0f)
             {
                 var newElement = new CuiElementContainer()
                 {
@@ -624,12 +625,12 @@ namespace Oxide.Plugins
 
                 Text("Title_Protection", "Title_Padded", ref protection, TextAnchor.MiddleLeft, Rgba.Format(TextColor), 10, titleText, new Anchor(0f, .2f),
 new Anchor(1f, .5f), "robotocondensed-bold.ttf");
-                Text("Amount_Protection", "Title_Padded", ref protection, TextAnchor.MiddleLeft, Rgba.Format(TextColor), 10, titleAmount, new Anchor(.85f, .2f),
+                Text("Amount_Protection", "Title_Padded", ref protection, TextAnchor.MiddleLeft, Rgba.Format(TextColor), 10, titleAmount, new Anchor(.80f, .2f),
                     new Anchor(1f, .5f), "robotocondensed-bold.ttf");
 
                 Text("Title_Slots", "Title_Padded", ref protection, TextAnchor.MiddleLeft, Rgba.Format(TextColor), 10, instance.Lang("Headquarter_UI_Storage_Slots", player.UserIDString), new Anchor(0f, .5f),
                     new Anchor(1f, .8f), "robotocondensed-bold.ttf");
-                Text("Amount_Slots", "Title_Padded", ref protection, TextAnchor.MiddleLeft, Rgba.Format(TextColor), 10, hq.StorageSlots.ToString(), new Anchor(.85f, .5f),
+                Text("Amount_Slots", "Title_Padded", ref protection, TextAnchor.MiddleLeft, Rgba.Format(TextColor), 10, hq.StorageSlots.ToString(), new Anchor(.80f, .5f),
                     new Anchor(1f, .8f), "robotocondensed-bold.ttf");
 
                 return protection;
@@ -994,7 +995,7 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
                 return;
             }
 
-            var headquarter = GetHeadquarterAtPosition(entity.transform.position);
+            var headquarter = GetHeadquarterAtPosition(entity.transform.position, _config.HeadquartersConfig.DistanceToTC);
 
             if (headquarter != null && headquarter.IsActive)
             {
@@ -1092,11 +1093,13 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
             return null;
         }
 
-        private Headquarter GetHeadquarterAtPosition(Vector3 position)
+        private Headquarter GetHeadquarterAtPosition(Vector3 position, float radius = 0)
         {
+            radius = (radius == 0) ? _config.HeadquartersConfig.Radius : radius;
+
             foreach (KeyValuePair<string, Headquarter> currentHeadquarter in _data.AvailableHeadquarters)
             {
-                if (Vector3.Distance(position, currentHeadquarter.Value.getPosition()) <= _config.HeadquartersConfig.Radius)
+                if (Vector3.Distance(position, currentHeadquarter.Value.getPosition()) <= radius)
                 {
                     return currentHeadquarter.Value;
                 }
@@ -1389,7 +1392,7 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
                 {
                     Headquarter disbandingHQ = currentHeadquarter.Value;
 
-                    var isDisbandComplete = DateTime.UtcNow.Subtract(disbandingHQ.DisbandedAt).TotalHours > _config.HeadquartersConfig.DisbandPenaltyHours;
+                    var isDisbandComplete = DateTime.UtcNow.Subtract(disbandingHQ.DisbandedAt).TotalMinutes >= (_config.HeadquartersConfig.DisbandPenaltyHours * 60);
 
                     if (isDisbandComplete)
                     {
