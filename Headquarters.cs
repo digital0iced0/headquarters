@@ -9,7 +9,7 @@ using Oxide.Game.Rust.Cui;
 
 namespace Oxide.Plugins
 {
-    [Info("Headquarters", "digital0iced0", "0.2.1")]
+    [Info("Headquarters", "digital0iced0", "0.2.2")]
     [Description("Allows players to have one protected headquarter base.")]
     public class Headquarters : RustPlugin
     {
@@ -904,7 +904,7 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
 
         void OnItemAddedToContainer(ItemContainer container, Item item)
         {
-            if (container == null || item == null || container.entityOwner == null || container.entityOwner.transform == null || container.entityOwner.transform.position == null)
+            if (container == null || item == null || container.entityOwner == null || container.entityOwner.transform == null || container.entityOwner.ShortPrefabName == null || container.entityOwner.transform.position == null)
             {
                 return;
             }
