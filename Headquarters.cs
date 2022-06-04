@@ -9,7 +9,7 @@ using Oxide.Game.Rust.Cui;
 
 namespace Oxide.Plugins
 {
-    [Info("Headquarters", "digital0iced0", "0.2.2")]
+    [Info("Headquarters", "digital0iced0", "0.2.3")]
     [Description("Allows players to have one protected headquarter base.")]
     public class Headquarters : RustPlugin
     {
@@ -20,6 +20,8 @@ namespace Oxide.Plugins
         protected static ConfigFile _config;
 
         private bool _freeForAllActive = false;
+
+        private bool _hooksSubscribed = false;
 
         private Timer _utilityTimer;
 
@@ -109,6 +111,17 @@ namespace Oxide.Plugins
             public Anchor UIAnchorMin { get; set; } = new Anchor(0.75f, 0.92f);
 
             public Anchor UIAnchorMax { get; set; } = new Anchor(0.98f, 0.98f);
+
+            public string[] AdditionalProtectedEntities { get; set; } = new string[] {
+              "window",
+              "barricade",
+              "turret",
+              "cctvcamera",
+              "dropbox",
+              "mailbox",
+              "lantern",
+              "sign",
+            };
         }
 
         protected class Anchor
@@ -694,7 +707,7 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
                 ["Cmd_Headquarter_Remove_Fail"] = "Could not find a HQ belonging to this founder.",
 
                 ["Help_Welcome"] = "Welcome to Headquarters! This mod allows you to provide protection for one of your bases by designating it your headquarter (HQ).",
-                ["Help_Details"] = "A few simple things to keep in mind: Protection is applied to your HQ building blocks, Tool Cupboard (TC), and doors only (it does not protect windows or other deployables).  You can only belong to one HQ at any given time. You can switch HQ by authenticating at someone else's TC but you will lose your previous HQ.  If you place too many items inside your HQ it will reduce its protection level.  Removing items from the HQ will increase its protection again.",
+                ["Help_Details"] = "A few simple things to keep in mind: You can only belong to one HQ at any given time. You can switch HQ by authenticating at someone else's TC but you will lose your previous HQ.  If you place too many items inside your HQ it will reduce its protection level.  Removing items from the HQ will increase its protection again.",
                 ["Help_Raid"] = "You can raid headquarters and regular bases.  However, it may not be worth it to raid a headquarter with a high protection level.",
                 ["Help_Start"] = "Starts a named HQ at one of your bases' Tool Cupboard.",
                 ["Help_Start_Name"] = "(name)",
@@ -773,6 +786,9 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
         #region Hooks
         private void Init()
         {
+            Unsubscribe(nameof(OnItemAddedToContainer));
+            Unsubscribe(nameof(OnItemRemovedFromContainer));
+
             permission.RegisterPermission(AdminPermissionName, this);
             SaveConfig();
         }
@@ -784,6 +800,14 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
 
             _utilityTimer = timer.Every(30f, () =>
             {
+                // Delay the OnItemAddedToContainer and OnItemRemovedFromContainer because they throw error if active during init
+                if (!_hooksSubscribed)
+                {
+                    Subscribe(nameof(OnItemAddedToContainer));
+                    Subscribe(nameof(OnItemRemovedFromContainer));
+                    _hooksSubscribed = true;
+                }
+
                 CheckFreeForAll();
                 RefreshUIForAllPlayers();
                 RefreshMapMarkers();
@@ -1007,13 +1031,23 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
             }
         }
 
-        private object OnEntityTakeDamage(BuildingPrivlidge entity, HitInfo info)
+        private object OnEntityTakeDamage(BaseCombatEntity entity, HitInfo info)
         {
-            if (entity == null || info == null)
+            if (_freeForAllActive || entity == null || info == null || !info.damageTypes.IsConsideredAnAttack())
             {
                 return null;
             }
 
+            if (entity is BuildingPrivlidge)
+            {
+                return HandleToolCupboardDamage((BuildingPrivlidge)entity, info);
+            }
+
+            return HandleBuildingDamage(entity, info);
+        }
+
+        private object HandleToolCupboardDamage(BuildingPrivlidge entity, HitInfo info)
+        {
             if (!_config.HeadquartersConfig.InvulnerableTC)
             {
                 return HandleBuildingDamage(entity, info);
@@ -1036,20 +1070,27 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
             return null;
         }
 
+        private bool shouldHandleBuildingDamage(BaseCombatEntity entity)
+        {            
+            if (entity is BuildingBlock || entity is Door)
+            {
+                return true;
+            }
 
-        private object OnEntityTakeDamage(BuildingBlock entity, HitInfo info)
-        {
-            return HandleBuildingDamage(entity, info);
-        }
+            foreach (var check in _config.HeadquartersConfig.AdditionalProtectedEntities)
+            {
+                if (entity.name.Contains(check))
+                {
+                    return true;
+                }
+            }
 
-        private object OnEntityTakeDamage(Door entity, HitInfo info)
-        {
-            return HandleBuildingDamage(entity, info);
+            return false;
         }
 
         private object HandleBuildingDamage(BaseCombatEntity entity, HitInfo info)
         {
-            if (_freeForAllActive || entity == null || info == null || !info.damageTypes.IsConsideredAnAttack())
+            if (!shouldHandleBuildingDamage(entity))
             {
                 return null;
             }

@@ -15,7 +15,6 @@ Headquarters mod allows each player to have one main headquarter base which rece
 
 ## Additional details
 
-* Protection is applied to HQ building blocks, Tool Cupboard (TC), and doors only (it does not protect windows or other deployables).
 * A player can belong to only one protected HQ at any given time.
 * A player can join or switch HQ at any time by authorizing with the new HQ's Tool Cupboard.  If the player is already a member of a HQ this may result in loss of the previous HQ and or it’s building privilege (if it had other members they will inherit it).
 * The founder of a headquarter can elect to disband it.  However, this will come with a penalty waiting time before being able to start a new HQ.
@@ -67,6 +66,7 @@ Headquarters mod allows each player to have one main headquarter base which rece
 - `UIRefreshRateSeconds`: How often the UI will update after a change occurs to protection.  Default is 0, however if server performance is suffering, you can increase the value.
 - `UIAnchorMin`: UI position min.
 - `UIAnchorMax`: UI position max.
+- `AdditionalProtectedEntities`: Adds headquarter protection to other types of game entities besides doors and building blocks.  Only a part of the prefab name is necessary.  Keep in mind a large list can affect performance.  If you don't care about performance you can add two big ones: "deploy" and "building".  These two will affect most entities.
 ```json
 {
   "HeadquartersConfig": {
@@ -95,7 +95,17 @@ Headquarters mod allows each player to have one main headquarter base which rece
     "UIAnchorMax": {
       "X": 0.995,
       "Y": 0.99
-    }
+    },
+    "AdditionalProtectedEntities": [
+      "window",
+      "barricade",
+      "turret",
+      "cctvcamera",
+      "dropbox",
+      "mailbox",
+      "lantern",
+      "sign"
+    ]
   }
 }
 ```
