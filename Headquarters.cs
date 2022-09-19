@@ -9,7 +9,7 @@ using Oxide.Game.Rust.Cui;
 
 namespace Oxide.Plugins
 {
-    [Info("Headquarters", "digital0iced0", "0.2.3")]
+    [Info("Headquarters", "digital0iced0", "0.3.0")]
     [Description("Allows players to have one protected headquarter base.")]
     public class Headquarters : RustPlugin
     {
@@ -78,11 +78,13 @@ namespace Oxide.Plugins
 
             public bool TeleportEnabled { get; set; } = false;
 
-            public float DisbandPenaltyHours { get; set; } = 3f;
+            public float QuitPenaltyHours { get; set; } = 3f;
 
             public float DistanceToTC { get; set; } = 2f;
 
             public bool InvulnerableTC { get; set; } = true;
+
+            public bool ConquerModeEnabled { get; set; } = false;
 
             public bool FreeForAllEnabled { get; set; } = true;
 
@@ -169,6 +171,22 @@ namespace Oxide.Plugins
 
             [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public Dictionary<string, HeadquarterMember> MemberPlayers = new Dictionary<string, HeadquarterMember>() { };
+
+            [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public Dictionary<string, HeadquarterQuitter> QuitterPlayers = new Dictionary<string, HeadquarterQuitter>() { };
+        }
+
+        private class HeadquarterQuitter
+        {
+            public string UserId { get; }
+
+            public DateTime QuitAt { get; set; }
+
+            public HeadquarterQuitter(string user)
+            {
+                this.UserId = user;
+                this.QuitAt = DateTime.Now;
+            }
         }
 
         private class HeadquarterMember
@@ -247,7 +265,7 @@ namespace Oxide.Plugins
                     forceRefreshUI = true;
                 }
 
-                this.LastDamaged = DateTime.UtcNow;
+                this.LastDamaged = DateTime.Now;
 
                 if (forceRefreshUI)
                 {
@@ -257,12 +275,12 @@ namespace Oxide.Plugins
 
             public void MarkUIUpdated()
             {
-                this.LastUIUpdate = DateTime.UtcNow;
+                this.LastUIUpdate = DateTime.Now;
             }
 
             public bool ShouldUpdateUI()
             {
-                return DateTime.UtcNow.Subtract(LastUIUpdate).TotalSeconds >= Headquarters.getConfig().UIRefreshRateSeconds;
+                return DateTime.Now.Subtract(LastUIUpdate).TotalSeconds >= Headquarters.getConfig().UIRefreshRateSeconds;
             }
 
             public void CreateMapMarker(bool freeForAllActive = false)
@@ -334,11 +352,11 @@ namespace Oxide.Plugins
                     return;
                 }
 
-                if (forceUpdate || DateTime.UtcNow.Subtract(LastMarkerRefresh).TotalSeconds > 10)
+                if (forceUpdate || DateTime.Now.Subtract(LastMarkerRefresh).TotalSeconds > 10)
                 {
                     RemoveMapMarker();
                     CreateMapMarker(freeForAllActive);
-                    this.LastMarkerRefresh = DateTime.UtcNow;
+                    this.LastMarkerRefresh = DateTime.Now;
                 }
             }
 
@@ -436,7 +454,12 @@ namespace Oxide.Plugins
 
             public bool IsBeingRaided()
             {
-                return DateTime.UtcNow.Subtract(LastDamaged).TotalSeconds < Headquarters.getConfig().ProtectionConstantSecondsAfterDamage;
+                return DateTime.Now.Subtract(LastDamaged).TotalSeconds < Headquarters.getConfig().ProtectionConstantSecondsAfterDamage;
+            }
+
+            public bool IsDisbanding()
+            {
+                return DateTime.Now.Subtract(DisbandedAt).Hours < Headquarters.getConfig().QuitPenaltyHours;
             }
 
             public float GetCurrentProtectionPercent()
@@ -660,15 +683,15 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
         {
             lang.RegisterMessages(new Dictionary<string, string>
             {
-                ["Server_Welcome"] = "This server is running Headquarters mod.  It allows you to provide added defense to one of your bases.  For more details type /hq.help in chat",
+                ["Headquarter_Init"] = "This server is running Headquarters mod.  It allows you to provide added defense to one of your bases.  For more details type /hq.help in chat",
                 ["Headquarter_Protected_NoDamage"] = "This base is under the protection of a HQ.  It can't be damaged at this time.",
                 ["Headquarter_Exists_Cant_Clear_List"] = "A HQ exists at this location.  You can't clear its privilege list.",
-                ["Headquarter_Exists_Cant_Deauth"] = "A HQ exists at this location.  You must disband it before being able to deauthorize from it's Tool Cupboard.",
+                ["Headquarter_Exists_Cant_Deauth"] = "A HQ exists at this location.  You can't deauthorize from it's Tool Cupboard.",
                 ["Headquarter_Inside_Headquarter"] = "You can't create a HQ inside another HQ.",
                 ["Headquarter_Not_Inside"] = "You're not inside a HQ.",
                 ["Headquarter_Start_Near_TC"] = "You must stand next to your base's Tool Cupboard to start a HQ.",
                 ["Headquarter_Successful_Start"] = "You have started a HQ at this base! You can invite others to join your HQ by having them authenticate at the Tool Cupboard.  To keep your HQ base secure, put a lock on your Tool Cupboard.",
-                ["Headquarter_Already_Started"] = "You have already started or joined a HQ.  This disqualifies you from creating a new HQ. However, you can join another player's HQ by authenticating at their Tool Cupboard.",
+                ["Headquarter_Already_Started"] = "You have already started or joined a HQ.  This disqualifies you from creating a new HQ. However, you can quit it, and after the penalty period you will be able to start another HQ.",
                 ["Headquarter_Founder_Quit_Promoted"] = "Your previous HQ had members, therefore, one of them has been promoted to lead it.  You have been removed from the headquarter and deauthed from its Tool Cupboard.",
                 ["Headquarter_Founder_Quit_Empty"] = "Your previous HQ has been disbanded.  Since you were its only member you still maintain privilege at the base.",
                 ["Headquarter_Disband_Started"] = "You have started the disband process for your HQ.  This may take some time to complete.  Once it is complete you will be able to start a new HQ.  In the mean time your base will not receive any HQ protection.",
@@ -682,13 +705,16 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
                 ["Headquarter_Protection_Max_Min"] = "Maximum protection offered: {0} - Minimum: {1}",
                 ["Headquarter_Protection_Slots"] = "Storage slots allowed without penalty: {0} - Penalty per additional slot utilized: {1}%",
                 ["Headquarter_Protection_Raid_Lock_Seconds"] = "Protection is locked at the start of an attack.  It will remain locked for {0} seconds after the last attack.",
+                ["Headquarter_Cant_Auth"] = "A HQ exists at this location and conqueror mode is disabled, therefore you can't authorize here.  If you wish to join this HQ, quit your current HQ first.",
+                ["Headquarter_Quitter"] = "You have quit your HQ and are now a deserter.  You will not be able to join or start a new HQ for some time.",
+                ["Headquarter_Quit_In_Progress"] = "Your reputation is still tarnished from quitting your previous headquarter.  Wait a while longer and try again.",
+                ["Headquarter_Conquered"] = "{0} has fallen!  It has been conquered by {1}!",
 
                 ["Headquarter_Empty_Here"] = "There isn't a HQ at this position.",
                 ["Headquarter_Require_Name"] = "You must provide a name for your HQ.",
                 ["Headquarter_Deployable_Blocked"] = "You can't deploy this item inside someone else's HQ.",
                 ["Headquarter_Disband_Incomplete"] = "Your headquarter is still in the process of disbanding.  Please try again later.",
-                ["Headquarter_Being_Attacked"] = "Allies of {0}, the time to honor your alliance has come!  {1} has initiated an attack!",
-                ["Headquarter_Destroyed"] = "{0} has fallen!",
+                ["Headquarter_Being_Attacked"] = "Allies of {0}, the time to honor your alliance has come!  We're being attacked by {1}!",
 
                 ["Headquarter_UI_Storage_Slots"] = "STORAGE SLOTS",
                 ["Headquarter_UI_Protection"] = "PROTECTION",
@@ -708,9 +734,10 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
 
                 ["Help_Welcome"] = "Welcome to Headquarters! This mod allows you to provide protection for one of your bases by designating it your headquarter (HQ).",
                 ["Help_Details"] = "A few simple things to keep in mind: You can only belong to one HQ at any given time. You can switch HQ by authenticating at someone else's TC but you will lose your previous HQ.  If you place too many items inside your HQ it will reduce its protection level.  Removing items from the HQ will increase its protection again.",
-                ["Help_Raid"] = "You can raid headquarters and regular bases.  However, it may not be worth it to raid a headquarter with a high protection level.",
+                ["Help_Raid"] = "You can raid headquarters and regular bases.  However, it may not be worth it to raid a headquarter with a high protection level.  Conquer mode is {0}.",
                 ["Help_Start"] = "Starts a named HQ at one of your bases' Tool Cupboard.",
                 ["Help_Start_Name"] = "(name)",
+                ["Help_Quit"] = "Quits your current HQ.  You will not be able to join or start a new HQ for {0} hours.",
                 ["Help_Disband"] = "(Founder Only) Allows you to start the disband process for your HQ. During this time your HQ will not receive any protection, and you will not be able to start a new one.  Once the process is complete you will be able to start a new HQ.",
                 ["Help_FFA"] = "Provides details on how long until free for all is activated.",
                 ["Help_Check"] = "Lets you know if there is a HQ nearby (and its protection level).  It also lets you know all protection settings on this server.",
@@ -720,6 +747,8 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
                 ["Time_Soon"] = "any moment now!",
                 ["Protected"] = "protected",
                 ["Unprotected"] = "unprotected",
+                ["Enabled"] = "enabled",
+                ["Disabled"] = "disabled",
             }, this);
         }
 
@@ -755,6 +784,61 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
             return null;
         }
 
+        private BuildingPrivlidge GetHeadquarterTC(Headquarter hq)
+        {
+            List<BaseCombatEntity> cblist = new List<BaseCombatEntity>();
+            Vis.Entities<BaseCombatEntity>(hq.getPosition(), _config.HeadquartersConfig.DistanceToTC, cblist);
+
+            foreach (BaseCombatEntity bp in cblist.Distinct().ToList())
+            {
+                if (bp is BuildingPrivlidge)
+                {
+                    return (BuildingPrivlidge)bp;
+                }
+            }
+
+            return null;
+        }
+
+        private void DisbandFounderHQ(BasePlayer player)
+        {
+            var hq = _data.AvailableHeadquarters[player.UserIDString];
+
+            ConqueredHQ(hq);
+        }
+
+        private void ConqueredHQ(Headquarter hq)
+        {
+            DisbandHQ(hq);
+        }
+
+        private void DisbandHQ(Headquarter hq)
+        {
+            hq.IsActive = false;
+            hq.LastKnownProtectionPercent = 0f;
+            hq.DisbandedAt = DateTime.Now;
+            hq.RefreshMapMarker(_freeForAllActive, true);
+            hq.RefreshUI(true);
+        }
+
+        private void AddQuitter(BasePlayer player)
+        {
+            if (!_data.QuitterPlayers.ContainsKey(player.UserIDString))
+            {
+                _data.QuitterPlayers.Add(player.UserIDString, new HeadquarterQuitter(player.UserIDString));
+            }
+
+            SendReply(player, Lang("Headquarter_Quitter", player.UserIDString));
+        }
+
+        private void AnnounceConquered(Headquarter conqueringHQ, Headquarter fallenHQ)
+        {
+            foreach (var player in BasePlayer.activePlayerList)
+            {
+                PrintToChat(player, Lang("Headquarter_Conquered", player.UserIDString, fallenHQ.Name, conqueringHQ.Name));
+            }
+        }
+
         private bool IsFounder(BasePlayer player)
         {
             return _data.AvailableHeadquarters.ContainsKey(player.UserIDString);
@@ -763,6 +847,11 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
         private bool IsMember(BasePlayer player)
         {
             return _data.MemberPlayers.ContainsKey(player.UserIDString);
+        }
+
+        private bool IsQuitter(BasePlayer player)
+        {
+            return _data.QuitterPlayers.ContainsKey(player.UserIDString);
         }
 
         private void SaveData() => Interface.Oxide.DataFileSystem.WriteObject(Name, _data);
@@ -812,6 +901,7 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
                 RefreshUIForAllPlayers();
                 RefreshMapMarkers();
                 RemoveDisbanded();
+                RemoveQuitters();
             });
 
             RefreshStorageCounts();
@@ -846,7 +936,6 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
 
             RefreshMapMarkers();
 
-            SendReply(player, Lang("Server_Welcome", player.UserIDString));
             if (_config.HeadquartersConfig.FreeForAllEnabled)
             {
                 OutputFFAStatus(player);
@@ -867,7 +956,7 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
 
             string prefabName = entity?.ShortPrefabName ?? "unknown";
 
-            if (entity == null || player == null || !StorageTypes.Contains(prefabName))
+            if (entity == null || player == null || (!StorageTypes.Contains(prefabName) && !(entity is BuildingPrivlidge)))
             {
                 return;
             }
@@ -876,6 +965,11 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
 
             if (headquarter == null)
             {
+                if (entity is BuildingPrivlidge)
+                {
+                    SendReply(player, Lang("Headquarter_Init", player.UserIDString));
+                }
+
                 return;
             }
 
@@ -1024,10 +1118,19 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
             if (headquarter != null && headquarter.IsActive)
             {
                 headquarter.IsActive = false;
-                headquarter.DisbandedAt = DateTime.UtcNow;
+                headquarter.DisbandedAt = DateTime.Now;
                 headquarter.RefreshMapMarker(_freeForAllActive, true);
 
-                MessageAllPlayersHeadquarterDestroyed(headquarter);
+                if (info.InitiatorPlayer != null)
+                {
+                    var attackerHQ = GetPlayerHeadquarter(info.InitiatorPlayer);
+
+                    if (attackerHQ != null)
+                    {
+                        AnnounceConquered(attackerHQ, headquarter);
+                    }
+
+                }
             }
         }
 
@@ -1071,7 +1174,7 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
         }
 
         private bool shouldHandleBuildingDamage(BaseCombatEntity entity)
-        {            
+        {
             if (entity is BuildingBlock || entity is Door)
             {
                 return true;
@@ -1181,73 +1284,37 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
 
             if (potentialHeadquarter != null)
             {
-                Headquarter nearestHeadquarter = (Headquarter)potentialHeadquarter;
-
-                // If this player is a founder of another headquarter
-                if (IsFounder(player))
+                if (IsQuitter(player))
                 {
-                    Headquarter founderPreviousHQ = _data.AvailableHeadquarters[player.UserIDString] as Headquarter;
+                    SendReply(player, Lang("Headquarter_Quit_In_Progress", player.UserIDString));
+                    return true;
+                }
 
-                    if (founderPreviousHQ != null)
+                if (!IsFounder(player) && !IsMember(player))
+                {
+                    potentialHeadquarter.MemberIds.Add(player.UserIDString);
+                    _data.MemberPlayers.Add(player.UserIDString, new HeadquarterMember(player.UserIDString, potentialHeadquarter.FounderId));
+                }
+                else
+                {
+                    Headquarter nearestHeadquarter = (Headquarter)potentialHeadquarter;
+
+                    Headquarter playerHeadquarter = GetPlayerHeadquarter(player);
+
+                    if (nearestHeadquarter.FounderId != playerHeadquarter.FounderId)
                     {
-                        // If somehow the founder was removed, and is attempting to create another TC in same area, allow it
-                        if (founderPreviousHQ.FounderId == nearestHeadquarter.FounderId)
+                        if (!_config.HeadquartersConfig.ConquerModeEnabled)
                         {
-                            return null;
-                        }
-
-                        founderPreviousHQ.RemoveMapMarker();
-
-                        // If there are any members left, promote one to new founder and build a replacement HQ
-                        if (founderPreviousHQ.MemberIds.Any())
-                        {
-                            string newFounder = (string)(founderPreviousHQ.MemberIds.First());
-
-                            _data.MemberPlayers.Remove(newFounder);
-
-                            var newHQ = new Headquarter(newFounder, founderPreviousHQ.Name, founderPreviousHQ.PositionX, founderPreviousHQ.PositionY, founderPreviousHQ.PositionZ, founderPreviousHQ.StorageSlots, founderPreviousHQ.MapMarkerEnabled);
-
-                            newHQ.SetInstance(this);
-
-                            founderPreviousHQ.MemberIds.ForEach(memberId => _data.MemberPlayers[memberId].FounderId = newFounder);
-
-                            _data.AvailableHeadquarters.Add(newFounder, newHQ);
-
-                            DeauthPlayerFromTC(player, privilege);
-
-                            SendReply(player, Lang("Headquarter_Founder_Quit_Promoted", player.UserIDString));
+                            SendReply(player, Lang("Headquarter_Cant_Auth", player.UserIDString));
+                            return true;
                         }
                         else
                         {
-                            SendReply(player, Lang("Headquarter_Founder_Quit_Empty", player.UserIDString));
+                            ConqueredHQ(nearestHeadquarter);
+                            AnnounceConquered(playerHeadquarter, nearestHeadquarter);
                         }
                     }
-
-                    // dismantle old headquarter
-                    _data.AvailableHeadquarters.Remove(player.UserIDString);
                 }
-
-                // If this player is a member of another headquarter
-                if (IsMember(player))
-                {
-                    if (_data.AvailableHeadquarters.ContainsKey(_data.MemberPlayers[player.UserIDString].FounderId))
-                    {
-                        Headquarter memberPreviousHQ = _data.AvailableHeadquarters[_data.MemberPlayers[player.UserIDString].FounderId] as Headquarter;
-
-                        if (memberPreviousHQ != null)
-                        {
-                            DeauthPlayerFromTC(player, privilege);
-
-                            //remove membership there
-                            memberPreviousHQ.MemberIds.Remove(player.UserIDString);
-                        }
-                    }
-                    _data.MemberPlayers.Remove(player.UserIDString);
-                }
-
-                // allow to join
-                nearestHeadquarter.MemberIds.Add(player.UserIDString);
-                _data.MemberPlayers.Add(player.UserIDString, new HeadquarterMember(player.UserIDString, nearestHeadquarter.FounderId));
             }
 
             return null;
@@ -1264,7 +1331,7 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
             }
             else if (_config.HeadquartersConfig.FreeForAllEnabled)
             {
-                var timeLeft = _config.HeadquartersConfig.FreeForAllHoursAfterWipe - DateTime.UtcNow.Subtract(SaveRestore.SaveCreatedTime).TotalHours;
+                var timeLeft = _config.HeadquartersConfig.FreeForAllHoursAfterWipe - DateTime.Now.Subtract(SaveRestore.SaveCreatedTime).TotalHours;
                 string outLeft;
 
                 if (timeLeft > 2)
@@ -1413,7 +1480,7 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
 
         private void CheckFreeForAll()
         {
-            if (!_freeForAllActive && _config.HeadquartersConfig.FreeForAllEnabled && DateTime.UtcNow.Subtract(SaveRestore.SaveCreatedTime).TotalHours >= _config.HeadquartersConfig.FreeForAllHoursAfterWipe)
+            if (!_freeForAllActive && _config.HeadquartersConfig.FreeForAllEnabled && DateTime.Now.Subtract(SaveRestore.SaveCreatedTime).TotalHours >= _config.HeadquartersConfig.FreeForAllHoursAfterWipe)
             {
                 _freeForAllActive = true;
                 RefreshMapMarkers();
@@ -1427,21 +1494,32 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
 
         private void RemoveDisbanded()
         {
-            foreach (KeyValuePair<string, Headquarter> currentHeadquarter in _data.AvailableHeadquarters)
+            foreach (var currentHQ in _data.AvailableHeadquarters.Values.ToList())
             {
-                if (!currentHeadquarter.Value.IsActive)
+                if (!currentHQ.IsActive)
                 {
-                    Headquarter disbandingHQ = currentHeadquarter.Value;
-
-                    var isDisbandComplete = DateTime.UtcNow.Subtract(disbandingHQ.DisbandedAt).TotalMinutes >= (_config.HeadquartersConfig.DisbandPenaltyHours * 60);
+                    var isDisbandComplete = DateTime.Now.Subtract(currentHQ.DisbandedAt).TotalMinutes >= (_config.HeadquartersConfig.QuitPenaltyHours * 60);
 
                     if (isDisbandComplete)
                     {
-                        disbandingHQ.RemoveMapMarker();
-                        disbandingHQ.RemoveUI();
-                        disbandingHQ.MemberIds.ForEach(memberId => _data.MemberPlayers.Remove(memberId));
-                        _data.AvailableHeadquarters.Remove(disbandingHQ.FounderId);
+                        currentHQ.RemoveMapMarker();
+                        currentHQ.RemoveUI();
+                        currentHQ.MemberIds.ForEach(memberId => _data.MemberPlayers.Remove(memberId));
+                        _data.AvailableHeadquarters.Remove(currentHQ.FounderId);
                     }
+                }
+            }
+        }
+
+        private void RemoveQuitters()
+        {
+            foreach (var quitter in _data.QuitterPlayers.Values.ToList())
+            {
+                var isQuitComplete = DateTime.Now.Subtract(quitter.QuitAt).TotalMinutes >= (_config.HeadquartersConfig.QuitPenaltyHours * 60);
+
+                if (isQuitComplete)
+                {
+                    _data.QuitterPlayers.Remove(quitter.UserId);
                 }
             }
         }
@@ -1459,7 +1537,7 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
 
         private void MessageAllPlayersHeadquarterBeingAttacked(Headquarter hq, BasePlayer attacker)
         {
-            if (attacker != null && _config.HeadquartersConfig.MessagePlayersHeadquarterAttacked && DateTime.UtcNow.Subtract(hq.LastDamaged).TotalSeconds > _config.HeadquartersConfig.ProtectionConstantSecondsAfterDamage)
+            if (attacker != null && _config.HeadquartersConfig.MessagePlayersHeadquarterAttacked && DateTime.Now.Subtract(hq.LastDamaged).TotalSeconds > _config.HeadquartersConfig.ProtectionConstantSecondsAfterDamage)
             {
                 Headquarter attackerHQ = GetPlayerHeadquarter(attacker);
                 String attackerString = attackerHQ == null ? attacker.displayName : attackerHQ.Name;
@@ -1467,17 +1545,6 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
                 foreach (var player in BasePlayer.activePlayerList)
                 {
                     PrintToChat(player, Lang("Headquarter_Being_Attacked", player.UserIDString, hq.Name, attackerString));
-                }
-            }
-        }
-
-        private void MessageAllPlayersHeadquarterDestroyed(Headquarter hq)
-        {
-            if (_config.HeadquartersConfig.MessagePlayersHeadquarterDestroyed)
-            {
-                foreach (var player in BasePlayer.activePlayerList)
-                {
-                    PrintToChat(player, Lang("Headquarter_Destroyed", player.UserIDString, hq.Name));
                 }
             }
         }
@@ -1490,8 +1557,9 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
         {
             SendReply(player, Lang("Help_Welcome", player.UserIDString));
             SendReply(player, Lang("Help_Details", player.UserIDString));
-            SendReply(player, Lang("Help_Raid", player.UserIDString));
+            SendReply(player, Lang("Help_Raid", player.UserIDString, _config.HeadquartersConfig.ConquerModeEnabled ? Lang("Enabled", player.UserIDString) : Lang("Disabled", player.UserIDString)));
             SendReply(player, "/hq.start " + Lang("Help_Start_Name", player.UserIDString) + " --- " + Lang("Help_Start", player.UserIDString));
+            SendReply(player, "/hq.quit --- " + Lang("Help_Quit", player.UserIDString, _config.HeadquartersConfig.QuitPenaltyHours.ToString()));
             SendReply(player, "/hq.disband --- " + Lang("Help_Disband", player.UserIDString));
             SendReply(player, "/hq.ffa --- " + Lang("Help_FFA", player.UserIDString));
             SendReply(player, "/hq.check --- " + Lang("Help_Check", player.UserIDString));
@@ -1515,6 +1583,12 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
                     SendReply(player, Lang("Headquarter_Name_Exists", player.UserIDString));
                     return;
                 }
+            }
+
+            if (IsQuitter(player))
+            {
+                SendReply(player, Lang("Headquarter_Quit_In_Progress", player.UserIDString));
+                return;
             }
 
             var isNotAssociatedWithHeadquarter = (!IsFounder(player) && !IsMember(player));
@@ -1586,21 +1660,98 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
             }
         }
 
-        [ChatCommand("hq.disband")]
-        private void cmdChatHeadquarterDisband(BasePlayer player, string command)
+        [ChatCommand("hq.quit")]
+        private void cmdChatHeadquarterQuit(BasePlayer player, string command)
         {
             if (IsFounder(player))
             {
-                _data.AvailableHeadquarters[player.UserIDString].IsActive = false;
-                _data.AvailableHeadquarters[player.UserIDString].DisbandedAt = DateTime.UtcNow;
-                _data.AvailableHeadquarters[player.UserIDString].RefreshMapMarker(_freeForAllActive);
-                _data.AvailableHeadquarters[player.UserIDString].RefreshUI(true);
-                SendReply(player, Lang("Headquarter_Disband_Started", player.UserIDString));
+                Headquarter founderPreviousHQ = _data.AvailableHeadquarters[player.UserIDString] as Headquarter;
+
+                if (founderPreviousHQ != null)
+                {
+                    if (founderPreviousHQ.IsDisbanding())
+                    {
+                        SendReply(player, Lang("Headquarter_Disband_Incomplete", player.UserIDString));
+                        return;
+                    }
+
+                    founderPreviousHQ.RemoveMapMarker();
+
+                    // If there are any members left, promote one to new founder and build a replacement HQ
+                    if (founderPreviousHQ.MemberIds.Any())
+                    {
+                        string newFounder = (string)(founderPreviousHQ.MemberIds.First());
+
+                        _data.MemberPlayers.Remove(newFounder);
+
+                        var newHQ = new Headquarter(newFounder, founderPreviousHQ.Name, founderPreviousHQ.PositionX, founderPreviousHQ.PositionY, founderPreviousHQ.PositionZ, founderPreviousHQ.StorageSlots, founderPreviousHQ.MapMarkerEnabled);
+
+                        newHQ.SetInstance(this);
+
+                        founderPreviousHQ.MemberIds.ForEach(memberId => _data.MemberPlayers[memberId].FounderId = newFounder);
+
+                        _data.AvailableHeadquarters.Add(newFounder, newHQ);
+
+                        var tc = GetHeadquarterTC(founderPreviousHQ);
+
+                        if (tc != null)
+                        {
+                            DeauthPlayerFromTC(player, tc);
+                        }
+
+                        _data.AvailableHeadquarters.Remove(player.UserIDString);
+
+                        AddQuitter(player);
+
+                        RemoveUIForPlayer(player);
+
+                        SendReply(player, Lang("Headquarter_Founder_Quit_Promoted", player.UserIDString));
+                    }
+                    else
+                    {
+                        DisbandFounderHQ(player);
+
+                        SendReply(player, Lang("Headquarter_Founder_Quit_Empty", player.UserIDString));
+                    }
+                }
+
                 return;
             }
-            else
+            else if (IsMember(player))
             {
-                SendReply(player, Lang("Headquarter_Only_Founder", player.UserIDString));
+                if (_data.AvailableHeadquarters.ContainsKey(_data.MemberPlayers[player.UserIDString].FounderId))
+                {
+                    Headquarter memberPreviousHQ = _data.AvailableHeadquarters[_data.MemberPlayers[player.UserIDString].FounderId] as Headquarter;
+
+                    if (memberPreviousHQ.IsDisbanding())
+                    {
+                        SendReply(player, Lang("Headquarter_Disband_Incomplete", player.UserIDString));
+                        return;
+                    }
+
+                    if (memberPreviousHQ != null)
+                    {
+
+                        var tc = GetHeadquarterTC(memberPreviousHQ);
+
+                        if (tc != null)
+                        {
+                            DeauthPlayerFromTC(player, tc);
+                        }
+
+                        //remove membership there
+                        memberPreviousHQ.MemberIds.Remove(player.UserIDString);
+
+
+                    }
+                }
+
+                _data.MemberPlayers.Remove(player.UserIDString);
+
+                AddQuitter(player);
+
+                RemoveUIForPlayer(player);
+
                 return;
             }
         }

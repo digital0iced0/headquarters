@@ -16,10 +16,12 @@ Headquarters mod allows each player to have one main headquarter base which rece
 ## Additional details
 
 * A player can belong to only one protected HQ at any given time.
-* A player can join or switch HQ at any time by authorizing with the new HQ's Tool Cupboard.  If the player is already a member of a HQ this may result in loss of the previous HQ and or it’s building privilege (if it had other members they will inherit it).
-* The founder of a headquarter can elect to disband it.  However, this will come with a penalty waiting time before being able to start a new HQ.
+* A player can join or switch HQ at any time by authorizing with the new HQ's Tool Cupboard.  If the player is already a member of a HQ they must first quit it.
+* The founder of a headquarter can decide to quit it.  If there are other members, one of them will be promoted to founder and the previous founder will lose access to the base and HQ.  Additionally the quitting founder will face the standard quitter penalty.
+* A member of a HQ can quit their HQ but will face a penalty period where they will not be able to join or start a HQ.
 * Players can not build storage deployables (or add items to storage deployables) inside other HQs.
 * Vehicles with storage capabilities which are left inside a HQ base will eventually suffer random inventory losses as they decay.
+* Headquarters can be conquered if the conquer mode option is enabled.  This simply means that an attacker can conquer an opponent HQ by destroying its TC or by authenticating in it.  
 * Headquarters can be destroyed through raiding if the InvulnerableTC option is disabled in the config. 
 
 ## Permissions
@@ -39,7 +41,7 @@ Headquarters mod allows each player to have one main headquarter base which rece
 
 * `/hq.help` -- Provides a list of help commands.
 * `/hq.start myhq` -- Starts a headquarter at your nearest Tool Cupboard with the name "myhq".
-* `/hq.disband` -- (Founder Only) Allows you to disband your current headquarter.
+* `/hq.quit` -- Allows you to quit your current headquarter.
 * `/hq.ffa` -- Provides details on how long until free for all is activated.
 * `/hq.check` -- Checks if there is a headquarter at this location, and lets the player know the actual protection level of that headquarter.  Also lets the player know all protection related config values.
 * `/hq.teleport` -- If enabled, allows player to teleport to their HQ.
@@ -49,9 +51,10 @@ Headquarters mod allows each player to have one main headquarter base which rece
 - `Radius`: The radius of the HQ. This should match the Tool Cupboard's range (or slightly smaller).
 - `MapMarkersEnabled`: Whether to show map markers on the map.
 - `TeleportEnabled`: Whether players can teleport to their HQ (disabled by default).
-- `DisbandPenaltyHours`: Number of hours HQ members must wait before being able to start new Headquarters after disbanding their previous HQ.
+- `QuitPenaltyHours`: Number of hours HQ members must wait before being able to start new Headquarters after quiting their HQ or being conquered.
 - `DistanceToTC`: How close to the TC you need to be to start a headquarter (Probably shouldn't modify).
-- `InvulnerableTC`: Enabled by default, prevents all damage to HQ TCs.
+- `ConquerModeEnabled`: Allows headquarter members to conquer other headquarters (disband them, and take their base).  The conquered headquarter becomes a regular base for the conqueror and loses all protection.  For full raiding and conquering its suggested to disable InvulnerableTC.  If InvulnerableTC is on, then you will only be able to conquer by authenticating at enemy TC.
+- `InvulnerableTC`: Enabled by default, prevents all damage to HQ TCs.  This should be disabled if you want to allow conquering by destroying enemy TC.
 - `FreeForAllEnabled`: Whether scheduled free for all is enabled or disabled.
 - `FreeForAllHoursAfterWipe`: How many hours from the previous wipe until FFA is scheduled to be enabled.
 - `MarkerPrefab`: Prefab for marker.  Should not need to be changed unless the game changes.
@@ -73,9 +76,10 @@ Headquarters mod allows each player to have one main headquarter base which rece
     "Radius": 27.5,
     "MapMarkersEnabled": true,
     "TeleportEnabled": false,
-    "DisbandPenaltyHours": 3,
+    "QuitPenaltyHours": 3,
     "DistanceToTC": 2.0,
-    "InvulnerableTC": false,
+    "InvulnerableTC": true,
+    "ConquerModeEnabled": false,
     "FreeForAllEnabled": true,
     "FreeForAllHoursAfterWipe": 144.0,
     "MarkerPrefab": "assets/prefabs/tools/map/genericradiusmarker.prefab",
