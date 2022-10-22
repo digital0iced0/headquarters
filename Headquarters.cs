@@ -9,7 +9,7 @@ using Oxide.Game.Rust.Cui;
 
 namespace Oxide.Plugins
 {
-    [Info("Headquarters", "digital0iced0", "1.0.0")]
+    [Info("Headquarters", "digital0iced0", "1.1.0")]
     [Description("Allows players to have one protected headquarter base.")]
     public class Headquarters : RustPlugin
     {
@@ -1292,7 +1292,7 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
 
         object OnCupboardAuthorize(BuildingPrivlidge privilege, BasePlayer player)
         {
-            var potentialHeadquarter = GetHeadquarterAtPosition(player.transform.position);
+            var potentialHeadquarter = GetHeadquarterAtPosition(player.transform.position, _config.HeadquartersConfig.DistanceToTC);
 
             if (potentialHeadquarter != null)
             {
