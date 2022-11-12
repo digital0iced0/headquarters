@@ -715,7 +715,7 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
                 ["Headquarter_Require_Name"] = "You must provide a name for your HQ.",
                 ["Headquarter_Deployable_Blocked"] = "You can't deploy this item inside someone else's HQ.",
                 ["Headquarter_Dismantle_In_Progress"] = "The leader of your headquarter has previously initiated the dismantle process by performing a /hq.quit.  This process takes some time.  While its ongoing you can't start or join another HQ.",
-                ["Headquarter_Quit_Clan"] = "You can't quit a clan's headquarter and remain in the clan.  If you quit the clan, you be removed from its headquarter.",
+                ["Headquarter_Quit_Clan"] = "You can't quit a clan's headquarter and remain in the clan.  If you quit the clan, you will be removed from its headquarter.",
                 ["Headquarter_Being_Attacked"] = "Allies of {0}, the time to honor your alliance has come!  We're being attacked by {1}!",
 
                 ["Headquarter_UI_Storage_Slots"] = "STORAGE SLOTS",
