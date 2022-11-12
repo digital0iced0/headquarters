@@ -1632,8 +1632,7 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
             foreach (KeyValuePair<string, Headquarter> currentHeadquarter in headquarters)
             {
                 var clanMembers = GetClanMembers(currentHeadquarter.Value.LeaderId);
-                clanMembers.Remove("76561197960451805");
-                //clanMembers.Remove(currentHeadquarter.Value.LeaderId); @TODO CHANGE BACK
+                clanMembers.Remove(currentHeadquarter.Value.LeaderId);
 
                 if (clanMembers.Any())
                 {
