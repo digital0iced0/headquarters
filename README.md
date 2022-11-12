@@ -1,13 +1,6 @@
 ## Purpose
 
-Allows players to enjoy an improved mid and end game PVP experience in Rust.  This is a hybrid raid protection system.  It is not no raid, it is not noob protect, and it is not PVE.  Players can still raid, be killed, and lose their bases with Headquarters mod.
-
-## Attention Existing Admins
-Version 1.0.0 is not backwards compatible with the data from previous versions.  There were some fields renamed and some commands added to accomodate for the new form of the mod.  Therefore its suggested to start fresh with this update.  If you wish to attempt to manually modify the data file to be compatible you will need to replace in your data file "DisbandedAt" with "DismantleStartedAt", and "FounderId" to "LeaderId".  Additionally I would suggest running the hq.clear-quitters command so you don't have to worry about that data.  Also just in case remove the headquarters language file in the lang directory.
-
-This all goes in line with the changes to allow a leader to quit their headquarter without affecting other members and with the addition of conquest mode.  This also means the /hq.disband command for founders is no longer utilized.  There is now a state called "dismantling" which is essentially the penalty period where the headquarter still exists but without protection and its members can't start or join another headquarter.  A headquarter can end up in this state if it has only a leader with no other members and the leader quits, or if the headquarter is conquered.
-
-There is a new command to show the status to players (/hq.status used to be /hq.check).  This will tell them if they're in a headquarter, as well as any penalties, configurations, etc.  As well as some new commands for admins (hq.remove-quitter {id} and hq.clear-quitters).
+This is a hybrid raid protection system.  It is not no raid, it is not noob protect, and it is not PVE.  Players can still raid, be killed, and lose their bases with Headquarters mod.
 
 ## How it works
 
@@ -24,6 +17,7 @@ Headquarters mod allows each player to have one main headquarter base which rece
 
 * A player can belong to only one protected HQ at any given time.
 * A player can join or switch HQ at any time by authorizing with the new HQ's Tool Cupboard.  If the player is already a member of a HQ they must first quit it.
+* A player belonging to a clan is automatically part of the clan's headquarter.  There can be only one headquarter per clan.
 * A member/leader of a HQ can quit it, but will face a penalty period where they will not be able to join or start a HQ.  If the player was the leader, a new leader will be chosen from the existing members and the player will also lose access to the base.  If there are no other members, then the headquarter will go into dismantle mode but the leader will keep access to the base.
 * Players can not build storage deployables (or add items to storage deployables) inside other HQs.
 * Vehicles with storage capabilities which are left inside a HQ base will eventually suffer random inventory losses as they decay.
@@ -49,7 +43,7 @@ Headquarters mod allows each player to have one main headquarter base which rece
 
 * `/hq.help` -- Provides a list of help commands.
 * `/hq.start myhq` -- Starts a headquarter at your nearest Tool Cupboard with the name "myhq".
-* `/hq.quit` -- Allows you to quit your current headquarter.
+* `/hq.quit` -- Allows you to quit your current headquarter (only for non clan members).
 * `/hq.ffa` -- Provides details on how long until free for all is activated.
 * `/hq.status` -- Gives details about the player status, server configuration, and nearby headquarter.
 * `/hq.teleport` -- If enabled, allows player to teleport to their HQ.

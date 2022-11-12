@@ -9,11 +9,12 @@ using Oxide.Game.Rust.Cui;
 
 namespace Oxide.Plugins
 {
-    [Info("Headquarters", "digital0iced0", "1.1.0")]
+    [Info("Headquarters", "digital0iced0", "1.2.0")]
     [Description("Allows players to have one protected headquarter base.")]
     public class Headquarters : RustPlugin
     {
         #region Declaration
+        [PluginReference] private readonly Plugin Clans;
 
         private static PluginData _data;
 
@@ -212,6 +213,8 @@ namespace Oxide.Plugins
             public float PositionY { get; }
             public float PositionZ { get; }
             public bool IsActive { get; set; }
+
+            public bool IsClan { get; set; } = false;
             public List<string> MemberIds { get; set; } = new List<string>();
             [JsonIgnore]
             public MapMarkerGenericRadius marker;
@@ -248,6 +251,18 @@ namespace Oxide.Plugins
             public bool HasMember(string user)
             {
                 return user == this.LeaderId || this.MemberIds.Contains(user);
+            }
+
+            public void SetMembers(List<string> newMembers)
+            {
+                if (MemberIds.Any())
+                {
+                    Instance.RemoveMemberPlayers(MemberIds);
+                }
+
+                MemberIds = newMembers;
+
+                Instance.AddMemberPlayers(newMembers, LeaderId);
             }
 
             public Vector3 getPosition()
@@ -398,30 +413,27 @@ namespace Oxide.Plugins
                 RefreshUI();
             }
 
+            private List<string> GetMembers(bool includeLeader = true)
+            {
+                if (includeLeader)
+                {
+                    return MemberIds.Concat(new List<string> { LeaderId }).ToList();
+                }
+
+                return MemberIds;
+            }
+
             public void RefreshUI(bool forceRefresh = false)
             {
                 HeadquartersConfig c = Headquarters.getConfig();
 
                 if (Instance != null && (forceRefresh || (c.UIEnabled && ShouldUpdateUI())))
                 {
-                    List<string> playerIds = new List<string>();
-
-                    playerIds.Add(LeaderId);
-                    playerIds.AddRange(MemberIds);
-
-                    playerIds.ForEach(delegate (string playerId)
+                    var members = GetMembers();
+                    foreach (var member in members)
                     {
-                        ulong check;
-
-                        if (ulong.TryParse(playerId, out check))
-                        {
-                            BasePlayer p = BasePlayer.FindByID(check);
-                            if (p != null)
-                            {
-                                Instance.RefreshUIForPlayer(p, this);
-                            }
-                        }
-                    });
+                        Instance.RefreshUIForPlayer(member, this);
+                    }
                 }
             }
 
@@ -432,24 +444,11 @@ namespace Oxide.Plugins
                     return;
                 }
 
-                List<string> playerIds = new List<string>();
-
-                playerIds.Add(LeaderId);
-                playerIds.AddRange(MemberIds);
-
-                playerIds.ForEach(delegate (string playerId)
+                var members = GetMembers();
+                foreach (var member in members)
                 {
-                    ulong check;
-
-                    if (ulong.TryParse(playerId, out check))
-                    {
-                        BasePlayer p = BasePlayer.FindByID(check);
-                        if (p != null)
-                        {
-                            Instance.RemoveUIForPlayer(p);
-                        }
-                    }
-                });
+                    Instance.RemoveUIForPlayer(member);
+                }
             }
 
             public bool IsBeingRaided()
@@ -697,7 +696,9 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
                 ["Headquarter_Only_Leader"] = "Only the leader of a HQ can perform this action.",
                 ["Headquarter_Found_Count"] = "Found {0} HQs.",
                 ["Headquarter_Near_Found"] = "Headquarter {0} near {1}.",
+                ["Headquarter_Clan_Exists"] = "Your clan already controls a headquarter.  By being a member of the clan you're automatically a member of it's headquarter.",
                 ["Headquarter_Name_Exists"] = "This name is already taken.  Please try another.",
+
                 ["Headquarter_Already_Member"] = "You're already a member of this HQ.",
                 ["Headquarter_Cleared"] = "All HQs have been removed.  Protections are disabled.",
                 ["Headquarter_Here_Protection_Rating"] = "You're in {0}'s HQ! ({1}%).",
@@ -714,6 +715,7 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
                 ["Headquarter_Require_Name"] = "You must provide a name for your HQ.",
                 ["Headquarter_Deployable_Blocked"] = "You can't deploy this item inside someone else's HQ.",
                 ["Headquarter_Dismantle_In_Progress"] = "The leader of your headquarter has previously initiated the dismantle process by performing a /hq.quit.  This process takes some time.  While its ongoing you can't start or join another HQ.",
+                ["Headquarter_Quit_Clan"] = "You can't quit a clan's headquarter and remain in the clan.  If you quit the clan, you be removed from its headquarter.",
                 ["Headquarter_Being_Attacked"] = "Allies of {0}, the time to honor your alliance has come!  We're being attacked by {1}!",
 
                 ["Headquarter_UI_Storage_Slots"] = "STORAGE SLOTS",
@@ -737,11 +739,11 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
                 ["Cmd_Cleared_Quitters"] = "Cleared all quitters.",
 
                 ["Help_Welcome"] = "Welcome to Headquarters! This mod allows you to provide protection for one of your bases by designating it your headquarter (HQ).",
-                ["Help_Details"] = "A few simple things to keep in mind: You can only belong to one HQ at any given time. You can switch HQ by authenticating at someone else's TC but you will lose your previous HQ.  If you place too many items inside your HQ it will reduce its protection level.  Removing items from the HQ will increase its protection again.",
+                ["Help_Details"] = "A few simple things to keep in mind: You can only belong to one HQ at any given time. Clan members will be added automatically to its headquarter.  If you're not in a clan, you can join a HQ by authenticating at it's Tool Cupboard.  If you are a member of a HQ and authenticate at some enemy HQ's TC you will conquer that base.  If you place too many items inside your HQ it will reduce its protection level. Removing items from the HQ will increase its protection again.",
                 ["Help_Raid"] = "You can raid headquarters and regular bases.  However, it may not be worth it to raid a headquarter with a high protection level.  Conquer mode is {0}.",
                 ["Help_Start"] = "Starts a named HQ at one of your bases' Tool Cupboard.",
                 ["Help_Start_Name"] = "(name)",
-                ["Help_Quit"] = "Quits your current HQ.  You will not be able to join or start a new HQ for {0} hours.",
+                ["Help_Quit"] = "(Non Clan Members Only) Quits your current HQ.  You will not be able to join or start a new HQ for {0} hours.",
                 ["Help_FFA"] = "Provides details on how long until free for all is activated.",
                 ["Help_Status"] = "Tells you your personal status.  Lets you know if there is a HQ nearby (and its protection level).  It also lets you know relevant Headquarters settings on this server.",
 
@@ -909,6 +911,7 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
                     _hooksSubscribed = true;
                 }
 
+                UpdateClans();
                 CheckFreeForAll();
                 RefreshUIForAllPlayers();
                 RefreshMapMarkers();
@@ -1281,7 +1284,7 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
         {
             var headquarter = GetHeadquarterAtPosition(player.transform.position);
 
-            if (headquarter != null && headquarter.IsActive)
+            if (headquarter != null && headquarter.IsActive && !headquarter.IsClan)
             {
                 SendReply(player, Lang("Headquarter_Exists_Cant_Deauth", player.UserIDString));
                 return true;
@@ -1302,16 +1305,17 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
                     return true;
                 }
 
-                if (!IsLeader(player) && !IsMember(player))
+                if ((!IsLeader(player) && !IsMember(player) && !potentialHeadquarter.IsClan) || (potentialHeadquarter.IsClan && GetClanMembers(player.UserIDString).Contains(potentialHeadquarter.LeaderId)))
                 {
-                    potentialHeadquarter.MemberIds.Add(player.UserIDString);
-                    _data.MemberPlayers.Add(player.UserIDString, new HeadquarterMember(player.UserIDString, potentialHeadquarter.LeaderId));
+                    potentialHeadquarter.SetMembers(potentialHeadquarter.MemberIds.Concat<string>(new List<string> {player.UserIDString}).ToList());
                 }
                 else
                 {
                     Headquarter nearestHeadquarter = (Headquarter)potentialHeadquarter;
 
                     Headquarter playerHeadquarter = GetPlayerHeadquarter(player);
+
+                    if (playerHeadquarter == null) { return null; }
 
                     if (nearestHeadquarter.LeaderId != playerHeadquarter.LeaderId)
                     {
@@ -1461,6 +1465,16 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
             }
         }
 
+        private void RefreshUIForPlayer(string playerId, Headquarter hq)
+        {
+            var foundPlayers = BasePlayer.activePlayerList.Where(player => player.UserIDString == playerId);
+
+            if (foundPlayers.Count() > 0)
+            {
+                RefreshUIForPlayer(foundPlayers.First(), hq);
+            }
+        }
+
         private void RefreshUIForPlayer(BasePlayer p, Headquarter hq)
         {
             CuiHelper.DestroyUi(p, UI.MainContainer);
@@ -1481,6 +1495,16 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
                 {
                     RemoveUIForPlayer(p);
                 }
+            }
+        }
+
+        private void RemoveUIForPlayer(string playerId)
+        {
+            var foundPlayers = BasePlayer.activePlayerList.Where(player => player.UserIDString == playerId);
+
+            if (foundPlayers.Count() > 0)
+            {
+                RemoveUIForPlayer(foundPlayers.First());
             }
         }
 
@@ -1516,7 +1540,7 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
                     {
                         currentHQ.RemoveMapMarker();
                         currentHQ.RemoveUI();
-                        currentHQ.MemberIds.ForEach(memberId => _data.MemberPlayers.Remove(memberId));
+                        currentHQ.SetMembers(new List<string>());
                         _data.AvailableHeadquarters.Remove(currentHQ.LeaderId);
                     }
                 }
@@ -1525,7 +1549,9 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
 
         private void RemoveQuitters()
         {
-            foreach (var quitter in _data.QuitterPlayers.Values.ToList())
+            var quitters = _data.QuitterPlayers.Values.ToList();
+
+            foreach (var quitter in quitters)
             {
                 var isQuitComplete = DateTime.Now.Subtract(quitter.QuitStartedAt).TotalMinutes >= (_config.HeadquartersConfig.QuitPenaltyHours * 60);
 
@@ -1598,6 +1624,55 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
                 return;
             }
         }
+
+        private void UpdateClans()
+        {
+            var headquarters = _data.AvailableHeadquarters;
+
+            foreach (KeyValuePair<string, Headquarter> currentHeadquarter in headquarters)
+            {
+                var clanMembers = GetClanMembers(currentHeadquarter.Value.LeaderId);
+                clanMembers.Remove("76561197960451805");
+                //clanMembers.Remove(currentHeadquarter.Value.LeaderId); @TODO CHANGE BACK
+
+                if (clanMembers.Any())
+                {
+                    _data.AvailableHeadquarters[currentHeadquarter.Value.LeaderId].SetMembers(clanMembers);
+
+                    if (!_data.AvailableHeadquarters[currentHeadquarter.Value.LeaderId].IsClan)
+                    {
+                        _data.AvailableHeadquarters[currentHeadquarter.Value.LeaderId].IsClan = true;
+                    }
+                }
+            }
+        }
+
+        private List<string> GetClanMembers(String playerID)
+        {
+            if (Clans == null) return new List<string>();
+            return Clans.Call("GetClanMembers", playerID) as List<string> ?? new List<string>();
+        }
+
+        private void RemoveMemberPlayers(List<string> players)
+        {
+            foreach (var key in players)
+            {
+                _data.MemberPlayers.Remove(key);
+            }
+        }
+
+        private void AddMemberPlayers(List<string> players, string leaderId)
+        {
+            foreach (var id in players)
+            {
+                if (!_data.MemberPlayers.ContainsKey(id))
+                {
+                    _data.MemberPlayers.Add(id, new HeadquarterMember(id, leaderId));
+                }
+            }
+        }
+
+
         #endregion
 
         #region Commands
@@ -1625,11 +1700,19 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
 
             var hqName = args[0];
 
+            var clanMembers = GetClanMembers(player.UserIDString);
+
             foreach (KeyValuePair<string, Headquarter> currentHeadquarter in _data.AvailableHeadquarters)
             {
                 if (currentHeadquarter.Value.Name.ToLower() == hqName.ToLower())
                 {
                     SendReply(player, Lang("Headquarter_Name_Exists", player.UserIDString));
+                    return;
+                }
+
+                if (clanMembers.Contains(currentHeadquarter.Value.LeaderId))
+                {
+                    SendReply(player, Lang("Headquarter_Clan_Exists", player.UserIDString));
                     return;
                 }
             }
@@ -1724,6 +1807,12 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
 
                 if (leaderPreviousHQ != null)
                 {
+                    if (leaderPreviousHQ.IsClan)
+                    {
+                        SendReply(player, Lang("Headquarter_Quit_Clan", player.UserIDString));
+                        return;
+                    }
+
                     if (leaderPreviousHQ.IsDismantling())
                     {
                         SendReply(player, Lang("Headquarter_Dismantle_In_Progress", player.UserIDString));
@@ -1781,6 +1870,12 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
                 if (_data.AvailableHeadquarters.ContainsKey(_data.MemberPlayers[player.UserIDString].LeaderId))
                 {
                     Headquarter memberPreviousHQ = _data.AvailableHeadquarters[_data.MemberPlayers[player.UserIDString].LeaderId] as Headquarter;
+
+                    if (memberPreviousHQ.IsClan)
+                    {
+                        SendReply(player, Lang("Headquarter_Quit_Clan", player.UserIDString));
+                        return;
+                    }
 
                     if (memberPreviousHQ.IsDismantling())
                     {
