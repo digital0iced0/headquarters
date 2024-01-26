@@ -9,7 +9,7 @@ using Oxide.Game.Rust.Cui;
 
 namespace Oxide.Plugins
 {
-    [Info("Headquarters", "digital0iced0", "1.1.0")]
+    [Info("Headquarters", "digital0iced0", "1.2.0")]
     [Description("Allows players to have one protected headquarter base.")]
     public class Headquarters : RustPlugin
     {
@@ -995,7 +995,7 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
             }
         }
 
-        object CanMoveItem(Item item, PlayerInventory playerLoot, uint targetContainer, int targetSlot, int amount)
+        object CanMoveItem(Item item, PlayerInventory playerLoot, ItemContainerId targetContainerID, int targetSlot, int amount)
         {
             if (item == null || playerLoot == null || _freeForAllActive)
             {
@@ -1016,7 +1016,7 @@ new Anchor(1f, .5f), "robotocondensed-bold.ttf");
                 return null;
             }
 
-            var actualContainer = playerLoot.FindContainer(targetContainer);
+            var actualContainer = playerLoot.FindContainer(targetContainerID);
 
             if (actualContainer != null)
             {
